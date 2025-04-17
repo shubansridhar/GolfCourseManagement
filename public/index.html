@@ -16,35 +16,27 @@
         </header>
 
         <main>
-            <div class="sidebar">
-                <h2>Tables</h2>
-                <ul id="table-list" class="table-list">
-                    <!-- Tables will be populated here -->
-                </ul>
+            <div id="dashboard-view" class="content">
+                <h2>Dashboard</h2>
+                <div id="dashboard-container" class="dashboard-grid">
+                    <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading tables...</div>
+                </div>
             </div>
 
-            <div class="content">
+            <div id="table-view" class="content" style="display: none;">
                 <div class="table-actions">
-                    <h2 id="selected-table">Select a table from the sidebar</h2>
+                    <button id="back-to-dashboard-btn" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <h2 id="selected-table">Select a table</h2>
                     <button id="add-record-btn" class="btn btn-primary" disabled>
                         <i class="fas fa-plus"></i> Add Record
                     </button>
                 </div>
 
                 <div class="table-container">
-                    <table id="data-table">
-                        <thead>
-                            <tr>
-                                <!-- Table headers will be populated here -->
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Table data will be populated here -->
-                        </tbody>
-                    </table>
-                </div>
+                    </div>
 
-                <!-- Form Modal for Adding Records -->
                 <div id="add-record-modal" class="modal">
                     <div class="modal-content">
                         <div class="modal-header">
@@ -53,8 +45,7 @@
                         </div>
                         <div class="modal-body">
                             <form id="add-record-form">
-                                <!-- Form fields will be populated here -->
-                            </form>
+                                </form>
                         </div>
                         <div class="modal-footer">
                             <button type="button" id="submit-record" class="btn btn-success">Submit</button>
@@ -63,7 +54,6 @@
                     </div>
                 </div>
 
-                <!-- Notification Toast -->
                 <div id="notification" class="notification">
                     <span id="notification-message"></span>
                 </div>

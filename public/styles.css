@@ -1,7 +1,7 @@
 /* --- Google Font --- */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
-/* --- CSS Variables (Optional but helpful) --- */
+/* --- CSS Variables --- */
 :root {
     --primary-color: #215a35;    /* Dark Green */
     --primary-hover: #174025;    /* Darker Green */
@@ -33,11 +33,11 @@ body {
     color: var(--text-color);
     font-family: var(--font-family);
     line-height: 1.6;
-    font-weight: 400; /* Default font weight */
+    font-weight: 400;
 }
 
 .container {
-    max-width: 1300px; /* Slightly wider */
+    max-width: 1300px;
     margin: 0 auto;
     padding: 25px;
     display: flex;
@@ -46,34 +46,68 @@ body {
 }
 
 h1, h2, h3, h4, h5, h6 {
-     font-weight: 600; /* Bolder headings */
-     color: var(--primary-color); /* Consistent heading color */
+     font-weight: 600;
+     color: var(--primary-color);
 }
 
-/* --- Header & Footer --- */
+/* --- Header --- */
 header {
-    background: linear-gradient(135deg, var(--primary-color), #2a7d4a); /* Gradient background */
+    background: linear-gradient(135deg, var(--primary-color), #2a7d4a);
     color: white;
     padding: 25px;
     border-radius: var(--border-radius) var(--border-radius) 0 0;
-    text-align: center;
     margin-bottom: 30px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
 }
 
 header h1 {
     color: white;
     font-weight: 700;
     letter-spacing: 1px;
+    margin: 0;
+    text-align: left;
 }
 
+/* --- User Status in Header --- */
+.user-status {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Adjusted gap */
+    color: white;
+    font-weight: 500;
+}
+
+.user-status #username-display {
+    font-size: 0.95em;
+}
+
+.btn-sm { /* Smaller buttons for header */
+    padding: 6px 12px;
+    font-size: 0.85em;
+}
+.btn-sm i {
+    font-size: 1em; /* Adjust icon size */
+    margin-right: 4px; /* Space between icon and text */
+}
+
+/* Account button uses btn-sm styles */
+#account-btn {
+    /* Uses .btn, .btn-secondary, .btn-sm styles */
+}
+
+
+/* --- Footer --- */
 footer {
-    background-color: #fff; /* Lighter footer */
+    background-color: #fff;
     color: var(--secondary-color);
     text-align: center;
     padding: 20px;
     border-radius: 0 0 var(--border-radius) var(--border-radius);
-    margin-top: auto; /* Pushes footer down */
+    margin-top: auto;
     border-top: 1px solid var(--border-color);
     font-size: 0.9em;
 }
@@ -84,26 +118,118 @@ main {
     margin-bottom: 30px;
 }
 
-.content {
+.content { /* Styles for dashboard/table view content boxes */
     background-color: #ffffff;
     border-radius: var(--border-radius);
-    padding: 25px; /* Increased padding */
+    padding: 25px;
     box-shadow: var(--card-shadow);
     margin-bottom: 30px;
-    border: 1px solid var(--border-color); /* Subtle border */
+    border: 1px solid var(--border-color);
 }
+
+/* --- Authentication View --- */
+#auth-view {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 40px;
+    min-height: 60vh;
+}
+
+.auth-container {
+    background-color: #fff;
+    padding: 30px 40px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    border: 1px solid var(--border-color);
+    width: 100%;
+    max-width: 450px;
+}
+
+.auth-container h2 {
+    text-align: center;
+    margin-bottom: 25px;
+    font-size: 1.8em;
+    color: var(--primary-color);
+}
+
+.auth-container .form-group {
+    margin-bottom: 20px;
+}
+
+.btn-block { /* Button takes full width */
+    width: 100%;
+    padding: 12px;
+    font-size: 1.05em;
+    margin-top: 10px;
+}
+
+.auth-switch {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 0.95em;
+    color: var(--secondary-color);
+}
+
+.auth-switch a {
+    color: var(--primary-color);
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.auth-switch a:hover {
+    color: var(--primary-hover);
+    text-decoration: underline;
+}
+
+.auth-error {
+    color: #dc3545;
+    background-color: #fde8e8;
+    border: 1px solid #f5c6cb;
+    padding: 10px 15px;
+    border-radius: var(--border-radius);
+    margin-bottom: 15px;
+    font-size: 0.9em;
+    text-align: center;
+}
+
+/* Style the select dropdown */
+#signup-role {
+     width: 100%;
+     padding: 12px 15px;
+     border: 1px solid var(--border-color);
+     border-radius: var(--border-radius);
+     font-size: 1em;
+     font-family: var(--font-family);
+     transition: border-color 0.2s ease, box-shadow 0.2s ease;
+     background-color: white;
+     appearance: none; /* Remove default arrow */
+     /* Custom arrow using SVG */
+     background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%236c757d%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+     background-repeat: no-repeat;
+     background-position: right 1rem center;
+     background-size: .65em auto;
+     padding-right: 2.5rem; /* Space for arrow */
+}
+#signup-role:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(33, 90, 53, 0.15);
+}
+
 
 /* --- Dashboard View --- */
 #dashboard-view h2 {
     margin-bottom: 25px;
     font-size: 1.8em;
-    text-align: center; /* Center dashboard title */
+    text-align: center;
 }
 
 .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Slightly larger min width */
-    gap: 25px; /* Increased gap */
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 25px;
 }
 
 .table-card {
@@ -113,26 +239,26 @@ main {
     padding: 25px;
     text-align: center;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* Smoother transition */
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     box-shadow: var(--card-shadow);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 150px;
-    position: relative; /* For potential future pseudo-elements */
-    overflow: hidden; /* Ensure content stays within border-radius */
-    border-left: 4px solid var(--primary-color); /* Accent border */
+    position: relative;
+    overflow: hidden;
+    border-left: 4px solid var(--primary-color);
 }
 
 .table-card:hover {
-    transform: translateY(-6px) scale(1.02); /* More pronounced lift */
+    transform: translateY(-6px) scale(1.02);
     box-shadow: var(--card-hover-shadow);
-    border-left-color: #34a853; /* Brighter green on hover */
+    border-left-color: #34a853;
 }
 
 .table-card i {
-    font-size: 3em; /* Larger icon */
+    font-size: 3em;
     margin-bottom: 18px;
     color: var(--primary-color);
     transition: color 0.3s ease;
@@ -143,7 +269,7 @@ main {
 }
 
 .table-card span {
-    font-weight: 500; /* Slightly bolder */
+    font-weight: 500;
     color: var(--text-color);
     font-size: 1.1em;
 }
@@ -156,9 +282,9 @@ main {
     align-items: center;
     margin-bottom: 25px;
     flex-wrap: wrap;
-    gap: 15px; /* Increased gap */
-    padding-bottom: 15px; /* Space below actions */
-    border-bottom: 1px solid var(--border-color); /* Separator */
+    gap: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
 }
 
 #selected-table {
@@ -172,22 +298,22 @@ main {
 
 /* --- Buttons --- */
 .btn {
-    padding: 10px 20px; /* More horizontal padding */
+    padding: 10px 20px;
     border: none;
     border-radius: var(--border-radius);
     cursor: pointer;
-    font-weight: 500; /* Slightly bolder text */
+    font-weight: 500;
     font-size: 0.95em;
     display: inline-flex;
     align-items: center;
-    gap: 8px; /* More gap */
+    gap: 8px;
     transition: all 0.2s ease;
-    text-transform: capitalize; /* Nicer button text */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle button shadow */
+    text-transform: capitalize;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .btn:hover {
-    transform: translateY(-2px); /* Lift on hover */
+    transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
@@ -197,81 +323,41 @@ main {
 }
 
 .btn i {
-    font-size: 1.1em; /* Slightly larger icons in buttons */
+    font-size: 1.1em;
 }
 
-.btn-primary {
-    background-color: var(--primary-color);
-    color: white;
-}
+.btn-primary { background-color: var(--primary-color); color: white; }
 .btn-primary:hover { background-color: var(--primary-hover); }
-.btn-primary:disabled {
-    background-color: #adb5bd; /* Nicer disabled color */
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-    color: #6c757d;
-}
-
-.btn-secondary {
-    background-color: var(--secondary-color);
-    color: white;
-}
+.btn-primary:disabled { background-color: #adb5bd; cursor: not-allowed; transform: none; box-shadow: none; color: #6c757d; }
+.btn-secondary { background-color: var(--secondary-color); color: white; }
 .btn-secondary:hover { background-color: var(--secondary-hover); }
-
-.btn-danger {
-    background-color: #dc3545;
-    color: white;
-}
+.btn-danger { background-color: #dc3545; color: white; }
 .btn-danger:hover { background-color: #c82333; }
-
-.btn-success {
-    background-color: #28a745;
-    color: white;
-}
+.btn-success { background-color: #28a745; color: white; }
 .btn-success:hover { background-color: #218838; }
 
 /* --- Error and Loading Styles --- */
 .error-container, .loading {
     text-align: center;
     padding: 40px;
-    background-color: #fff; /* Match content bg */
+    background-color: #fff;
     border-radius: var(--border-radius);
     margin: 20px 0;
-    border: 1px dashed #dc3545; /* Dashed border for errors */
+    border: 1px dashed #dc3545;
     color: var(--secondary-color);
 }
 
 .loading {
-    border: 1px dashed var(--secondary-color); /* Dashed border for loading */
+    border: 1px dashed var(--secondary-color);
     font-size: 1.1em;
+    grid-column: 1 / -1; /* Make loading span full width if inside grid */
 }
 
-.error-icon {
-    font-size: 3em; /* Larger error icon */
-    color: #dc3545;
-    margin-bottom: 20px;
-}
-
-.error-container h3 {
-    color: #dc3545;
-    margin-bottom: 15px;
-    font-size: 1.4em;
-}
-
-.error-container p {
-    margin-bottom: 20px;
-}
-
-.loading i {
-    margin-right: 12px;
-    animation: spin 1.5s infinite linear; /* Slightly slower spin */
-}
-
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
+.error-icon { font-size: 3em; color: #dc3545; margin-bottom: 20px; }
+.error-container h3 { color: #dc3545; margin-bottom: 15px; font-size: 1.4em; }
+.error-container p { margin-bottom: 20px; }
+.loading i { margin-right: 12px; animation: spin 1.5s infinite linear; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
 .no-data {
     text-align: center;
@@ -284,302 +370,113 @@ main {
 }
 
 /* --- Table Styles --- */
-.table-container {
-    overflow-x: auto;
-    margin-top: 15px; /* Space above table */
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse; /* Use collapse for cleaner lines */
-    border: 1px solid var(--border-color); /* Add outer border */
-    border-radius: var(--border-radius); /* Rounded corners for table */
-    overflow: hidden; /* Clip content to rounded corners */
-}
-
-th, td {
-    padding: 14px 18px; /* Increased padding */
-    text-align: left;
-    border-bottom: 1px solid var(--border-color);
-    vertical-align: middle; /* Align cell content vertically */
-}
-
-th {
-    background-color: var(--light-bg); /* Light grey header */
-    font-weight: 600; /* Bolder headers */
-    color: var(--primary-color); /* Header text color */
-    font-size: 0.9em;
-    text-transform: uppercase; /* Uppercase headers */
-    letter-spacing: 0.5px; /* Spacing */
-    border-bottom-width: 2px; /* Thicker bottom border for header */
-}
-
-tbody tr {
-     transition: background-color 0.2s ease; /* Smooth hover */
-}
-
-tbody tr:nth-child(even) {
-    background-color: var(--light-bg); /* Zebra striping */
-}
-
-tbody tr:hover {
-    background-color: var(--light-green-bg); /* Light green on hover */
-}
-
-.action-column {
-    text-align: center;
-    white-space: nowrap;
-}
-
-.action-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1.1em; /* Slightly larger action icons */
-    margin: 0 6px;
-    color: var(--secondary-color); /* Dimmer default color */
-    transition: color 0.2s ease, transform 0.2s ease;
-    padding: 5px; /* Add padding for easier clicking */
-    border-radius: 50%; /* Make it circular */
-}
-.action-btn:hover {
-    transform: scale(1.1); /* Scale up on hover */
-}
-
-.action-btn.delete:hover { color: #dc3545; background-color: #fde8e8; } /* Red hover */
-/* Add styles for edit button if you add one */
-/* .action-btn.edit:hover { color: #007bff; background-color: #e7f3ff;} */
-
-/* Highlight action buttons on row hover */
-tbody tr:hover .action-btn {
-    color: var(--primary-color); /* Show button color more clearly on row hover */
-}
-tbody tr:hover .action-btn.delete {
-    color: #dc3545;
-}
-
+.table-container { overflow-x: auto; margin-top: 15px; }
+table { width: 100%; border-collapse: collapse; border: 1px solid var(--border-color); border-radius: var(--border-radius); overflow: hidden; }
+th, td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+th { background-color: var(--light-bg); font-weight: 600; color: var(--primary-color); font-size: 0.9em; text-transform: uppercase; letter-spacing: 0.5px; border-bottom-width: 2px; }
+tbody tr { transition: background-color 0.2s ease; }
+tbody tr:nth-child(even) { background-color: var(--light-bg); }
+tbody tr:hover { background-color: var(--light-green-bg); }
+.action-column { text-align: center; white-space: nowrap; }
+.action-btn { background: none; border: none; cursor: pointer; font-size: 1.1em; margin: 0 6px; color: var(--secondary-color); transition: color 0.2s ease, transform 0.2s ease; padding: 5px; border-radius: 50%; }
+.action-btn:hover { transform: scale(1.1); }
+.action-btn.delete:hover { color: #dc3545; background-color: #fde8e8; }
+tbody tr:hover .action-btn { color: var(--primary-color); }
+tbody tr:hover .action-btn.delete { color: #dc3545; }
 
 /* --- Modal Styles --- */
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.7); /* Darker overlay */
-    overflow-y: auto; /* Enable scrolling on the modal itself */
-    padding: 30px 0; /* Add padding top/bottom for scroll */
-}
+/* General Modal Styles */
+.modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); overflow-y: auto; padding: 30px 0; }
+.modal-content { background-color: white; margin: 5% auto; width: 90%; border-radius: var(--border-radius); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); animation: modalFadeInScale 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); overflow: hidden; }
+/* Specific Modal Widths */
+#add-record-modal .modal-content { max-width: 650px; }
+#account-modal .modal-content { max-width: 550px; /* Slightly smaller modal */ }
 
-.modal-content {
-    background-color: white;
-    margin: 5% auto; /* Adjust margin */
-    width: 90%; /* Responsive width */
-    max-width: 650px; /* Max width */
-    border-radius: var(--border-radius);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); /* Stronger shadow */
-    animation: modalFadeInScale 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); /* Pop-in effect */
-    overflow: hidden; /* Ensure header/footer stick to radius */
-}
+@keyframes modalFadeInScale { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+.modal-header { padding: 20px 25px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background-color: var(--light-bg); }
+.modal-header h2 { margin: 0; font-size: 1.4em; }
+#account-modal .modal-header h2 { font-size: 1.5em; } /* Slightly larger title for account modal */
 
-@keyframes modalFadeInScale {
-    from { opacity: 0; transform: scale(0.9); }
-    to { opacity: 1; transform: scale(1); }
-}
+.modal-body { padding: 25px; max-height: 65vh; overflow-y: auto; }
+#account-modal .modal-body { padding-bottom: 15px; }
 
-.modal-header {
-    padding: 20px 25px;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: var(--light-bg); /* Header background */
-}
+.modal-footer { padding: 20px 25px; border-top: 1px solid var(--border-color); text-align: right; background-color: var(--light-bg); }
+.modal-footer .btn { margin-left: 10px; }
 
-.modal-header h2 {
-    margin: 0; /* Remove default margin */
-    font-size: 1.4em;
+/* Close buttons for ALL modals */
+.modal .close, .close-account-modal {
+    color: #888; font-size: 32px; font-weight: normal; cursor: pointer; transition: color 0.2s ease; line-height: 1; background: none; border: none; padding: 0;
 }
+.modal .close:hover, .close-account-modal:hover { color: #333; }
 
-.modal-body {
-    padding: 25px;
-    max-height: 65vh; /* Adjust max height */
-    overflow-y: auto; /* Scroll within body if needed */
-}
 
-.modal-footer {
-    padding: 20px 25px;
-    border-top: 1px solid var(--border-color);
-    text-align: right;
-    background-color: var(--light-bg); /* Footer background */
+/* Account Modal specific body styles */
+#account-details h3, #change-password-section h3 {
+    color: var(--primary-color); margin-bottom: 15px; font-size: 1.2em;
 }
+#account-details p { margin-bottom: 8px; font-size: 1em; }
+#account-details p strong { font-weight: 600; color: var(--text-color); margin-right: 5px;}
+#account-details span { color: var(--secondary-color); }
 
-.modal-footer .btn {
-    margin-left: 10px; /* Space between buttons */
-}
 
-.close {
-    color: #888;
-    font-size: 32px;
-    font-weight: normal; /* Lighter close button */
-    cursor: pointer;
-    transition: color 0.2s ease;
-    line-height: 1; /* Prevent extra spacing */
-}
+/* --- Form Styles (General & Modal Specific) --- */
+.form-group { margin-bottom: 20px; }
+/* Adjust bottom margin for forms inside modals slightly */
+.modal-body .form-group { margin-bottom: 15px; }
 
-.close:hover {
-    color: #333;
-}
+label { display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.95em; }
+.modal-body label { margin-bottom: 6px; } /* Slightly smaller label margin in modals */
 
-/* --- Form Styles --- */
-.form-group {
-    margin-bottom: 20px; /* Increased spacing */
+input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="date"], input[type="time"], input[type="datetime-local"], select, textarea {
+    width: 100%; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: var(--border-radius); font-size: 1em; font-family: var(--font-family); transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
+input:focus, select:focus, textarea:focus { border-color: var(--primary-color); outline: none; box-shadow: 0 0 0 3px rgba(33, 90, 53, 0.15); }
+textarea { min-height: 80px; resize: vertical; }
+/* Submit button margin in change password form */
+#change-password-form button[type="submit"] { margin-top: 10px; }
 
-label {
-    display: block;
-    margin-bottom: 8px; /* Increased spacing */
-    font-weight: 500; /* Slightly bolder labels */
-    font-size: 0.95em;
-}
-
-input[type="text"],
-input[type="number"],
-input[type="email"], /* Add other input types as needed */
-input[type="password"],
-input[type="date"],
-input[type="time"],
-input[type="datetime-local"],
-select,
-textarea {
-    width: 100%;
-    padding: 12px 15px; /* More padding */
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    font-size: 1em; /* Consistent font size */
-    font-family: var(--font-family);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-    border-color: var(--primary-color);
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(33, 90, 53, 0.15); /* Focus ring */
-}
-
-textarea {
-    min-height: 80px; /* Minimum height for text areas */
-    resize: vertical; /* Allow vertical resize */
-}
 
 /* --- Notification Toast --- */
-.notification {
-    display: flex; /* Use flex for icon alignment */
-    align-items: center; /* Vertically align icon and text */
-    position: fixed;
-    bottom: -100px; /* Start off-screen */
-    right: 25px;
-    min-width: 320px;
-    max-width: 400px; /* Max width */
-    color: white;
-    padding: 15px 20px;
-    border-radius: var(--border-radius);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-    z-index: 1001;
-    transition: bottom 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Easing for bounce effect */
-    font-weight: 500;
-}
-.notification::before { /* Add icon based on type */
-    font-family: "Font Awesome 6 Free"; /* Ensure Font Awesome is loaded */
-    font-weight: 900;
-    margin-right: 12px;
-    font-size: 1.2em;
-}
-
-.notification.show {
-    bottom: 25px; /* Slide in */
-}
-
-/* Specific notification types */
+.notification { display: flex; align-items: center; position: fixed; bottom: -100px; right: 25px; min-width: 320px; max-width: 400px; color: white; padding: 15px 20px; border-radius: var(--border-radius); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); z-index: 1001; transition: bottom 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); font-weight: 500; }
+.notification::before { font-family: "Font Awesome 6 Free"; font-weight: 900; margin-right: 12px; font-size: 1.2em; }
+.notification.show { bottom: 25px; }
 .notification.success { background-color: #28a745; }
-.notification.success::before { content: "\f058"; } /* Check circle */
-
+.notification.success::before { content: "\f058"; } /* check-circle */
 .notification.error { background-color: #dc3545; }
-.notification.error::before { content: "\f071"; } /* Exclamation triangle */
-
+.notification.error::before { content: "\f071"; } /* exclamation-triangle */
 .notification.info { background-color: #17a2b8; }
-.notification.info::before { content: "\f05a"; } /* Info circle */
-
+.notification.info::before { content: "\f05a"; } /* info-circle */
 .notification.warning { background-color: #ffc107; color: #333; }
-.notification.warning::before { content: "\f06a"; } /* Exclamation circle */
+.notification.warning::before { content: "\f06a"; } /* exclamation-circle */
 
 
 /* --- Responsive Styles --- */
 @media (max-width: 992px) {
-    .container {
-        padding: 20px;
-    }
-    .dashboard-grid {
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    }
+    .container { padding: 20px; }
+    .dashboard-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
 }
-
 @media (max-width: 768px) {
-    .dashboard-grid {
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    }
-    .modal-content {
-        width: 95%;
-        margin: 5% auto;
-    }
-     .table-actions {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    #selected-table {
-        order: -1;
-        text-align: center;
-        margin-bottom: 15px;
-        font-size: 1.3em;
-    }
-    .btn { /* Make buttons slightly smaller on mobile */
-        padding: 9px 16px;
-        font-size: 0.9em;
-    }
-     th, td {
-        padding: 10px 12px; /* Reduce padding */
-    }
+    header { flex-direction: column; align-items: flex-start; gap: 10px; }
+    header h1 { text-align: left; }
+    .user-status { align-self: flex-end; }
+    .auth-container { padding: 25px; }
+    .dashboard-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    .modal-content { width: 95%; margin: 5% auto; } /* Applies to all modals */
+    .table-actions { flex-direction: column; align-items: stretch; }
+    #selected-table { order: -1; text-align: center; margin-bottom: 15px; font-size: 1.3em; }
+    .btn { padding: 9px 16px; font-size: 0.9em; }
+    th, td { padding: 10px 12px; }
 }
-
 @media (max-width: 480px) {
-     .dashboard-grid {
-        grid-template-columns: 1fr; /* Single column */
-        gap: 15px;
-    }
-    .table-card {
-        min-height: 120px;
-    }
-    th {
-        font-size: 0.8em;
-    }
-     td {
-         font-size: 0.9em;
-     }
-    .action-btn {
-        margin: 0 3px;
-        font-size: 1em;
-    }
-     .notification {
-         right: 15px;
-         bottom: -100px; /* Start off screen */
-         min-width: auto; /* Allow smaller width */
-         width: calc(100% - 30px); /* Full width minus padding */
-     }
-     .notification.show {
-         bottom: 15px;
-     }
+     header h1 { font-size: 1.5em; }
+     .user-status { gap: 10px; font-size: 0.9em;}
+     .auth-container { padding: 20px; }
+     .auth-container h2 { font-size: 1.5em; }
+     .dashboard-grid { grid-template-columns: 1fr; gap: 15px; }
+     .table-card { min-height: 120px; }
+     th { font-size: 0.8em; }
+     td { font-size: 0.9em; }
+     .action-btn { margin: 0 3px; font-size: 1em; }
+     .notification { right: 15px; bottom: -100px; min-width: auto; width: calc(100% - 30px); }
+     .notification.show { bottom: 15px; }
 }

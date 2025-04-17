@@ -13,59 +13,63 @@
     <div class="container">
         <header>
             <h1>Golf Course Database Manager</h1>
+            <div id="user-status" class="user-status" style="display: none;">
+                <span id="username-display"></span>
+                <button id="account-btn" class="btn btn-secondary btn-sm" title="Account Settings">
+                    <i class="fas fa-user-cog"></i> Account
+                </button>
+                <button id="logout-btn" class="btn btn-secondary btn-sm" title="Logout">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
         </header>
 
         <main>
-            <div id="dashboard-view" class="content">
-                <h2>Dashboard</h2>
-                <div id="dashboard-container" class="dashboard-grid">
-                    <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading tables...</div>
+            <div id="auth-view" style="display: none;">
+                <div id="login-form-container" class="auth-container">
+                   <h2>Login</h2>
+                   <form id="login-form">
+                       <div class="form-group"> <label for="login-username">Username</label> <input type="text" id="login-username" name="username" required> </div>
+                       <div class="form-group"> <label for="login-password">Password</label> <input type="password" id="login-password" name="password" required> </div>
+                       <div id="login-error" class="auth-error" style="display: none;"></div>
+                       <button type="submit" class="btn btn-primary btn-block">Login</button>
+                   </form>
+                   <p class="auth-switch">Don't have an account? <a href="#" id="show-signup">Sign Up</a></p>
                 </div>
-            </div>
-
-            <div id="table-view" class="content" style="display: none;">
-                <div class="table-actions">
-                    <button id="back-to-dashboard-btn" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </button>
-                    <h2 id="selected-table">Select a table</h2>
-                    <button id="add-record-btn" class="btn btn-primary" disabled>
-                        <i class="fas fa-plus"></i> Add Record
-                    </button>
+                <div id="signup-form-container" class="auth-container" style="display: none;">
+                    <h2>Sign Up</h2>
+                    <form id="signup-form">
+                        <div class="form-group"> <label for="signup-username">Username</label> <input type="text" id="signup-username" name="username" required> </div>
+                        <div class="form-group"> <label for="signup-password">Password</label> <input type="password" id="signup-password" name="password" required> </div>
+                        <div class="form-group"> <label for="signup-confirm-password">Confirm Password</label> <input type="password" id="signup-confirm-password" name="confirmPassword" required> </div>
+                        <div class="form-group"> <label for="signup-role">Register as:</label> <select id="signup-role" name="role" required> <option value="member">Member/Guest</option> <option value="employee">Employee</option> </select> <small id="admin-role-info" style="display: none; color: var(--secondary-color); margin-top: 5px;">Admin role is for initial setup.</small> </div>
+                        <div id="signup-error" class="auth-error" style="display: none;"></div>
+                        <button type="submit" class="btn btn-success btn-block">Sign Up</button>
+                    </form>
+                    <p class="auth-switch">Already have an account? <a href="#" id="show-login">Login</a></p>
                 </div>
-
-                <div class="table-container">
-                    </div>
-
-                <div id="add-record-modal" class="modal">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h2 id="modal-title">Add Record</h2>
-                            <span class="close">&times;</span>
-                        </div>
-                        <div class="modal-body">
-                            <form id="add-record-form">
-                                </form>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" id="submit-record" class="btn btn-success">Submit</button>
-                            <button type="button" id="cancel-record" class="btn btn-danger">Cancel</button>
-                        </div>
+            </div> <div id="app-view">
+                <div id="dashboard-view" class="content">
+                    <h2>Dashboard</h2>
+                    <div id="dashboard-container" class="dashboard-grid">
+                        <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading tables...</div>
                     </div>
                 </div>
-
-                <div id="notification" class="notification">
-                    <span id="notification-message"></span>
+                <div id="table-view" class="content" style="display: none;">
+                   <div class="table-actions">
+                       <button id="back-to-dashboard-btn" class="btn btn-secondary"> <i class="fas fa-arrow-left"></i> Back </button>
+                       <h2 id="selected-table">Select a table</h2>
+                       <button id="add-record-btn" class="btn btn-primary" disabled> <i class="fas fa-plus"></i> Add Record </button>
+                   </div>
+                   <div class="table-container">
+                       </div>
+                   <div id="add-record-modal" class="modal"> <div class="modal-content"> <div class="modal-header"> <h2 id="modal-title">Add Record</h2> <span class="close">&times;</span> </div> <div class="modal-body"> <form id="add-record-form"></form> </div> <div class="modal-footer"> <button type="button" id="submit-record" class="btn btn-success">Submit</button> <button type="button" id="cancel-record" class="btn btn-danger">Cancel</button> </div> </div> </div>
+                   <div id="notification" class="notification"> <span id="notification-message"></span> </div>
                 </div>
-            </div>
+            </div> <div id="account-modal" class="modal"> <div class="modal-content"> <div class="modal-header"> <h2>Account Settings</h2> <span class="close-account-modal">&times;</span> </div> <div class="modal-body"> <div id="account-details"> <h3>Account Details</h3> <p><strong>Username:</strong> <span id="account-username"></span></p> <p><strong>Role:</strong> <span id="account-role"></span></p> </div> <hr style="margin: 20px 0;"> <div id="change-password-section"> <h3>Change Password</h3> <form id="change-password-form"> <div class="form-group"> <label for="current-password">Current Password</label> <input type="password" id="current-password" name="currentPassword" required> </div> <div class="form-group"> <label for="new-password">New Password</label> <input type="password" id="new-password" name="newPassword" required> </div> <div class="form-group"> <label for="confirm-new-password">Confirm New Password</label> <input type="password" id="confirm-new-password" name="confirmNewPassword" required> </div> <div id="change-password-error" class="auth-error" style="display: none;"></div> <button type="submit" class="btn btn-primary">Update Password</button> </form> </div> </div> <div class="modal-footer"> <button type="button" class="btn btn-secondary close-account-modal-btn">Close</button> </div> </div> </div>
         </main>
 
-        <footer>
-            <p>&copy; 2025 Golf Course Database Manager</p>
-        </footer>
-    </div>
-
-    <script src="script.js"></script>
+        <footer> <p>&copy; 2023 Golf Course Database Manager</p> </footer>
+    </div> <script src="script.js"></script>
 </body>
-
 </html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Golf Course Database Manager</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Golf Course Database Manager</h1>
+        </header>
+
+        <main>
+            <div class="sidebar">
+                <h2>Tables</h2>
+                <ul id="table-list" class="table-list">
+                    <!-- Tables will be populated here -->
+                </ul>
+            </div>
+
+            <div class="content">
+                <div class="table-actions">
+                    <h2 id="selected-table">Select a table from the sidebar</h2>
+                    <button id="add-record-btn" class="btn btn-primary" disabled>
+                        <i class="fas fa-plus"></i> Add Record
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table id="data-table">
+                        <thead>
+                            <tr>
+                                <!-- Table headers will be populated here -->
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Table data will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Form Modal for Adding Records -->
+                <div id="add-record-modal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2 id="modal-title">Add Record</h2>
+                            <span class="close">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <form id="add-record-form">
+                                <!-- Form fields will be populated here -->
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" id="submit-record" class="btn btn-success">Submit</button>
+                            <button type="button" id="cancel-record" class="btn btn-danger">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notification Toast -->
+                <div id="notification" class="notification">
+                    <span id="notification-message"></span>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2023 Golf Course Database Manager</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

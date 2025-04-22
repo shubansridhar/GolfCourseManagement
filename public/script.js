@@ -190,58 +190,117 @@ async function handleLogin(event) {
     event.preventDefault();
     if (!loginForm) return;
     if (loginError) loginError.style.display = 'none';
-    const usernameInput = loginForm.elements['username']?.value;
+    const usernameInput = loginForm.elements['username']?.value?.trim(); // Trim whitespace
     const password = loginForm.elements['password']?.value;
-    if (!usernameInput || !password) { /* ... handle missing input ... */ return; }
+
+    if (!usernameInput || !password) { if (loginError) { loginError.textContent = 'Please enter both username and password.'; loginError.style.display = 'block'; } return; }
+
     console.log(`Attempting login for: ${usernameInput}`);
+
     try {
-        // --- FAKE SUCCESS ---
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // --- FAKE LOGIN & ROLE RETRIEVAL ---
+        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+
+        // 1. Look up user data in our fake localStorage store
+        const userKey = `user_${usernameInput.toLowerCase()}`;
+        const userDataString = localStorage.getItem(userKey);
+        let determinedRole = null;
+
+        if (userDataString) {
+            // User exists in our simulation
+            const userData = JSON.parse(userDataString);
+            // **REAL APP:** Backend would verify password here!
+            determinedRole = userData.role; // Get the role stored during signup simulation
+             console.log(`Login simulation: Found user data for ${usernameInput}. Stored role: ${determinedRole}`);
+        } else {
+            // User not found in simulation store
+            console.log(`Login simulation: User ${usernameInput} not found in localStorage store.`);
+            throw new Error("Invalid username or password."); // Simulate login failure
+        }
+
+        // If we reached here, login is simulated successfully
         const fakeToken = `fake-token-${Date.now()}`;
-        let fakeRole = 'member';
-        if (usernameInput.toLowerCase() === 'admin' && localStorage.getItem('adminCreated')) fakeRole = 'admin';
-        if (usernameInput.toLowerCase() === 'emp') fakeRole = 'employee';
-        const data = { username: usernameInput, token: fakeToken, role: fakeRole, message: 'Login successful!' };
+        const data = { username: usernameInput, token: fakeToken, role: determinedRole, message: 'Login successful!' };
         // --- END FAKE ---
 
+        // Assign to currentUser using the retrieved/determined role
         currentUser = { username: data.username, token: data.token, role: data.role };
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('username', data.username);
-        localStorage.setItem('userRole', data.role);
+        localStorage.setItem('userRole', data.role); // Store the actual role found
+
+        console.log("Stored currentUser after login:", currentUser); // Log the final object
+
         showNotification(data.message || 'Login successful!', 'success');
         showAppView();
         fetchTablesAndPopulateDashboard();
-    } catch (error) { /* ... error handling ... */ }
+
+    } catch (error) {
+        console.error('Login error:', error);
+        if (loginError) { loginError.textContent = error.message; loginError.style.display = 'block'; }
+        showNotification(`Login failed: ${error.message}`, 'error');
+        currentUser = null;
+        localStorage.removeItem('authToken'); localStorage.removeItem('username'); localStorage.removeItem('userRole');
+        updateHeader();
+    }
 }
 
 async function handleSignup(event) {
     event.preventDefault();
     if (!signupForm || !signupRoleSelect) return;
     if (signupError) signupError.style.display = 'none';
-    const username = signupForm.elements['username']?.value;
+
+    const username = signupForm.elements['username']?.value?.trim(); // Trim whitespace
     const password = signupForm.elements['password']?.value;
     const confirmPassword = signupForm.elements['confirmPassword']?.value;
-    const role = signupRoleSelect.value;
+    const role = signupRoleSelect.value; // Get selected role
 
-    if (password !== confirmPassword) { /* ... handle password mismatch ... */ return; }
-    if (!role) { /* ... handle role missing ... */ return; }
+    // Basic validation
+    if (!username || !password || !confirmPassword) { if (signupError) { signupError.textContent = 'Please fill all fields.'; signupError.style.display = 'block'; } return; }
+    if (password !== confirmPassword) { if (signupError) { signupError.textContent = 'Passwords do not match.'; signupError.style.display = 'block'; } return; }
+    if (!role) { if (signupError) { signupError.textContent = 'Please select a role.'; signupError.style.display = 'block'; } return; }
+
     console.log(`Attempting signup for: ${username} with role: ${role}`);
+
     try {
-        // --- FAKE SUCCESS ---
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // --- FAKE SIGNUP & STORAGE ---
+        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+
+        // Check if user already exists in our fake store
+        const userKey = `user_${username.toLowerCase()}`; // Use lowercase username as key
+        if (localStorage.getItem(userKey)) {
+            throw new Error(`Username "${username}" already exists.`);
+        }
+
+        // If signing up as admin, check the global admin flag first
         if (role === 'admin') {
-            if (localStorage.getItem('adminCreated')) throw new Error("Admin user already exists.");
+            if (localStorage.getItem('adminCreated')) {
+                throw new Error("Admin user already exists. Cannot sign up another admin.");
+            }
+            // If successful admin signup, set the global flag
             localStorage.setItem('adminCreated', 'true');
         }
+
+        // Store user data (role) simulation - **DO NOT STORE PASSWORDS LIKE THIS IN REAL APPS**
+        const simulatedUserData = { role: role }; // Only store role for this simulation purpose
+        localStorage.setItem(userKey, JSON.stringify(simulatedUserData));
+
+        console.log(`Simulated storing user data for ${username} with key ${userKey}:`, simulatedUserData);
         const data = { message: `Signup successful as ${role}! Please log in.` };
         // --- END FAKE ---
 
         showNotification(data.message || 'Signup successful! Please log in.', 'success');
-        showLoginForm();
+        showLoginForm(); // Switch back to login form view
+
     } catch (error) {
         console.error('Signup error:', error);
         if (signupError) { signupError.textContent = error.message; signupError.style.display = 'block'; }
         showNotification(`Signup failed: ${error.message}`, 'error');
+        // Important: If admin signup failed because one already exists, unset the flag just in case
+        // (Though the check should prevent setting it in the first place)
+        // if (role === 'admin' && error.message.includes("already exists")) {
+        //     localStorage.removeItem('adminCreated'); // Optional cleanup if needed
+        // }
     }
 }
 

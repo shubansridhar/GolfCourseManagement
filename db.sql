@@ -176,3 +176,16 @@ INSERT INTO MANAGES (Emp_id, Equipment_id, Management_date) VALUES
 (4, 4, '2025-3-24'),
 (5, 5, '2025-3-25');
 
+-- Add these lines at the end of db.sql in VS Code
+
+-- Users table for authentication
+CREATE TABLE users (
+    user_id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL, -- Store hashed passwords, never plain text!
+    role ENUM('admin', 'employee', 'member') NOT NULL, -- Define allowed roles
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Optional: Add an index for faster username lookups during login
+CREATE INDEX idx_username ON users (username);

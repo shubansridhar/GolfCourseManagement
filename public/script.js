@@ -103,6 +103,8 @@ async function initializeApp() {
 
 // === View Management ===
 function showAuthView() {
+    if (!authView || !appView || !userStatusDisplay) return;
+    document.body.classList.add('auth-background'); // <-- ADD Class to body
     authView.style.display = 'flex';
     appView.style.display = 'none';
     userStatusDisplay.style.display = 'none';
@@ -110,13 +112,15 @@ function showAuthView() {
 }
 
 function showAppView() {
+    if (!authView || !appView) return;
+    document.body.classList.remove('auth-background'); // <-- REMOVE Class from body
     authView.style.display = 'none';
     appView.style.display = 'block';
-    dashboardView.style.display = 'block';
-    tableView.style.display = 'none';
+    // Ensure dashboard is shown initially within app view
+    if (dashboardView) dashboardView.style.display = 'block';
+    if (tableView) tableView.style.display = 'none';
     updateHeader();
 }
-
 function showLoginForm() {
     if (!loginFormContainer || !signupFormContainer) return;
     loginFormContainer.style.display = 'block';
@@ -134,8 +138,12 @@ function showSignupForm() {
     checkAdminExistsAndSetupSignup();
 }
 
+// Make sure showDashboardOnly also removes the background if needed,
+// although showAppView should handle it when logging in. Add for safety.
 function showDashboardOnly() {
-     if (!dashboardView || !tableView) return;
+    if (!dashboardView || !tableView) return;
+    document.body.classList.remove('auth-background'); // <-- REMOVE Class from body (Safety)
+    console.log("showDashboardOnly called");
     dashboardView.style.display = 'block';
     tableView.style.display = 'none';
     if (selectedTableHeader) selectedTableHeader.textContent = 'Select a table';
@@ -303,6 +311,7 @@ async function handleSignup(event) {
     }
 }
 
+// Make sure handleLogout calls showAuthView correctly
 async function handleLogout() {
     console.log('Logging out');
     try { /* Optional backend call */ }
@@ -311,7 +320,8 @@ async function handleLogout() {
         localStorage.removeItem('authToken');
         localStorage.removeItem('username');
         localStorage.removeItem('userRole');
-        showAuthView();
+        // Don't call updateHeader() here, showAuthView will hide user status
+        showAuthView(); // <-- This will now add the body class and show login
         showNotification('Logged out successfully.', 'info');
     }
 }

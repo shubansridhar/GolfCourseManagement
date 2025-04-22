@@ -1,3 +1,6 @@
+// Add this near the top
+const API_BASE_URL = 'http://localhost:3001/api'; // Your backend server address + /api prefix
+
 // === DOM Elements ===
 // --- Auth View ---
 const authView = document.getElementById('auth-view');
@@ -186,121 +189,117 @@ async function checkAdminExistsAndSetupSignup() {
     } catch (error) { /* ... error handling ... */ }
 }
 
+// Updated handleLogin function
 async function handleLogin(event) {
     event.preventDefault();
     if (!loginForm) return;
     if (loginError) loginError.style.display = 'none';
-    const usernameInput = loginForm.elements['username']?.value?.trim(); // Trim whitespace
+
+    const usernameInput = loginForm.elements['username']?.value?.trim();
     const password = loginForm.elements['password']?.value;
 
     if (!usernameInput || !password) { if (loginError) { loginError.textContent = 'Please enter both username and password.'; loginError.style.display = 'block'; } return; }
 
-    console.log(`Attempting login for: ${usernameInput}`);
+    console.log(`Attempting login via API for: ${usernameInput}`);
 
     try {
-        // --- FAKE LOGIN & ROLE RETRIEVAL ---
-        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+        const response = await fetch(`${API_BASE_URL}/auth/login`, { // Use API URL
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username: usernameInput, password: password }), // Send credentials
+        });
 
-        // 1. Look up user data in our fake localStorage store
-        const userKey = `user_${usernameInput.toLowerCase()}`;
-        const userDataString = localStorage.getItem(userKey);
-        let determinedRole = null;
+        const data = await response.json(); // Parse the JSON response from backend
 
-        if (userDataString) {
-            // User exists in our simulation
-            const userData = JSON.parse(userDataString);
-            // **REAL APP:** Backend would verify password here!
-            determinedRole = userData.role; // Get the role stored during signup simulation
-             console.log(`Login simulation: Found user data for ${usernameInput}. Stored role: ${determinedRole}`);
-        } else {
-            // User not found in simulation store
-            console.log(`Login simulation: User ${usernameInput} not found in localStorage store.`);
-            throw new Error("Invalid username or password."); // Simulate login failure
+        if (!response.ok) {
+            // Handle login errors from backend (invalid credentials, etc.)
+            throw new Error(data.error || `Login failed with status: ${response.status}`);
         }
 
-        // If we reached here, login is simulated successfully
-        const fakeToken = `fake-token-${Date.now()}`;
-        const data = { username: usernameInput, token: fakeToken, role: determinedRole, message: 'Login successful!' };
-        // --- END FAKE ---
+        // --- Login Successful ---
+        console.log("Login successful via API. Response data:", data);
 
-        // Assign to currentUser using the retrieved/determined role
-        currentUser = { username: data.username, token: data.token, role: data.role };
+        // Set current user state using data from backend response
+        currentUser = {
+            username: data.username,
+            token: data.token, // Get token from backend
+            role: data.role      // Get role from backend
+        };
+
+        // Store session info in localStorage
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('username', data.username);
-        localStorage.setItem('userRole', data.role); // Store the actual role found
+        localStorage.setItem('userRole', data.role);
 
-        console.log("Stored currentUser after login:", currentUser); // Log the final object
+        console.log("Stored currentUser after login:", currentUser);
 
         showNotification(data.message || 'Login successful!', 'success');
-        showAppView();
-        fetchTablesAndPopulateDashboard();
+        showAppView(); // Switch to the main application view
+        fetchTablesAndPopulateDashboard(); // Load dashboard data using the new token
 
     } catch (error) {
         console.error('Login error:', error);
         if (loginError) { loginError.textContent = error.message; loginError.style.display = 'block'; }
         showNotification(`Login failed: ${error.message}`, 'error');
+        // Clear any potentially partially stored info on error
         currentUser = null;
-        localStorage.removeItem('authToken'); localStorage.removeItem('username'); localStorage.removeItem('userRole');
-        updateHeader();
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('username');
+        localStorage.removeItem('userRole');
+        updateHeader(); // Ensure header reflects logged-out state
     }
 }
-
+// Updated handleSignup function
 async function handleSignup(event) {
     event.preventDefault();
     if (!signupForm || !signupRoleSelect) return;
     if (signupError) signupError.style.display = 'none';
 
-    const username = signupForm.elements['username']?.value?.trim(); // Trim whitespace
+    const username = signupForm.elements['username']?.value?.trim();
     const password = signupForm.elements['password']?.value;
     const confirmPassword = signupForm.elements['confirmPassword']?.value;
-    const role = signupRoleSelect.value; // Get selected role
+    const role = signupRoleSelect.value;
 
-    // Basic validation
+    // Frontend Validations
     if (!username || !password || !confirmPassword) { if (signupError) { signupError.textContent = 'Please fill all fields.'; signupError.style.display = 'block'; } return; }
     if (password !== confirmPassword) { if (signupError) { signupError.textContent = 'Passwords do not match.'; signupError.style.display = 'block'; } return; }
     if (!role) { if (signupError) { signupError.textContent = 'Please select a role.'; signupError.style.display = 'block'; } return; }
 
-    console.log(`Attempting signup for: ${username} with role: ${role}`);
+    console.log(`Attempting signup via API for: ${username} with role: ${role}`);
 
     try {
-        // --- FAKE SIGNUP & STORAGE ---
-        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+        const response = await fetch(`${API_BASE_URL}/auth/signup`, { // Use API URL
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, password, role }), // Send data to backend
+        });
 
-        // Check if user already exists in our fake store
-        const userKey = `user_${username.toLowerCase()}`; // Use lowercase username as key
-        if (localStorage.getItem(userKey)) {
-            throw new Error(`Username "${username}" already exists.`);
+        const data = await response.json(); // Always try to parse JSON response
+
+        if (!response.ok) {
+            // Handle errors returned from the backend API (like username taken, admin exists)
+            throw new Error(data.error || `Signup failed with status: ${response.status}`);
         }
 
-        // If signing up as admin, check the global admin flag first
-        if (role === 'admin') {
-            if (localStorage.getItem('adminCreated')) {
-                throw new Error("Admin user already exists. Cannot sign up another admin.");
-            }
-            // If successful admin signup, set the global flag
-            localStorage.setItem('adminCreated', 'true');
-        }
-
-        // Store user data (role) simulation - **DO NOT STORE PASSWORDS LIKE THIS IN REAL APPS**
-        const simulatedUserData = { role: role }; // Only store role for this simulation purpose
-        localStorage.setItem(userKey, JSON.stringify(simulatedUserData));
-
-        console.log(`Simulated storing user data for ${username} with key ${userKey}:`, simulatedUserData);
-        const data = { message: `Signup successful as ${role}! Please log in.` };
-        // --- END FAKE ---
-
+        // Signup successful on backend
         showNotification(data.message || 'Signup successful! Please log in.', 'success');
-        showLoginForm(); // Switch back to login form view
+        showAuthView(); // Show auth view
+        showLoginForm(); // Switch specifically to login form
+
+        // Clear the simulated adminCreated flag if an admin just signed up successfully
+        // (The backend already handles the check, this is just for consistency if needed)
+        if (role === 'admin') {
+             localStorage.setItem('adminCreated', 'true');
+        }
 
     } catch (error) {
         console.error('Signup error:', error);
         if (signupError) { signupError.textContent = error.message; signupError.style.display = 'block'; }
         showNotification(`Signup failed: ${error.message}`, 'error');
-        // Important: If admin signup failed because one already exists, unset the flag just in case
-        // (Though the check should prevent setting it in the first place)
-        // if (role === 'admin' && error.message.includes("already exists")) {
-        //     localStorage.removeItem('adminCreated'); // Optional cleanup if needed
-        // }
     }
 }
 
@@ -391,13 +390,16 @@ function getAuthHeaders() {
     return headers;
 }
 
-// === Dashboard & Table Logic ===
+// Updated fetchTablesAndPopulateDashboard function
 async function fetchTablesAndPopulateDashboard() {
+    // currentUser should be set if user is logged in
     if (!currentUser) {
-        console.log("fetchTablesAndPopulateDashboard: Not logged in, cannot fetch tables.");
+        console.log("fetchTablesAndPopulateDashboard: Not logged in. Dashboard may show limited info or nothing.");
+        // Decide what to show if not logged in - perhaps nothing?
+        if (dashboardContainer) dashboardContainer.innerHTML = '<p class="no-data">Please log in to view tables.</p>';
         return;
     }
-    console.log("fetchTablesAndPopulateDashboard: Function called."); // Log: Check if function starts
+    console.log("fetchTablesAndPopulateDashboard: Function called for logged-in user.");
 
     showDashboardOnly(); // Ensure dashboard view is displayed
 
@@ -408,46 +410,36 @@ async function fetchTablesAndPopulateDashboard() {
     dashboardContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading tables...</div>';
 
     try {
-        // **REAL APP:** Use authenticatedFetch to get tables user has access to
-        // const response = await authenticatedFetch('/api/tables');
-        // if (!response.ok) {
-        //     let errorMsg = `Failed to fetch tables (Status: ${response.status})`;
-        //      try { const errorData = await response.json(); errorMsg = errorData.error || errorMsg; } catch (e) {}
-        //     throw new Error(errorMsg);
-        // }
-        // allTables = await response.json();
-        // --- FAKE DATA ---
-        console.log("fetchTablesAndPopulateDashboard: Simulating API call to get tables...");
-        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-        // Updated list based on original screenshot + previous list
-        const fakeTables = [
-            'EMPLOYEE',
-            'EMPLOYEE_CONTACT', // Added
-            'EQUIPMENT',
-            'EQUIPMENT_TYPE',   // Added
-            'GOLF_COURSE',
-            'HOLE',             // Added
-            'MAINTENANCE_LOG',  // Was present
-            'MANAGER',          // Added
-            'MEMBERSHIP_PLAN',  // Was present
-            'PLAYERACCOUNT',    // Added
-            'TEE_TIME'          // Was present
-        ];
-        allTables = fakeTables; // Use the updated list
-        // --- END FAKE DATA ---
-        console.log("fetchTablesAndPopulateDashboard: Using table list:", allTables);
+        // Make the actual API call using authenticatedFetch
+        console.log("fetchTablesAndPopulateDashboard: Fetching tables from backend API...");
+        const response = await authenticatedFetch(`${API_BASE_URL}/tables`); // GET request by default
 
+        if (!response.ok) {
+            // Attempt to parse error message from backend response
+            let errorMsg = `Failed to fetch tables (Status: ${response.status})`;
+             try {
+                 const errorData = await response.json();
+                 errorMsg = errorData.error || errorMsg;
+             } catch (e) { /* Ignore if response is not JSON */ }
+            throw new Error(errorMsg);
+        }
+
+        allTables = await response.json(); // Get the actual list of tables from backend
+        console.log("fetchTablesAndPopulateDashboard: Received tables from API:", allTables);
+
+        // Populate dashboard with the real table list
         populateDashboard(allTables);
 
     } catch (error) {
+        // Handle errors during fetch (network, auth, server errors)
         console.error("fetchTablesAndPopulateDashboard: Error fetching tables:", error);
         if (dashboardContainer) {
+             // Display specific error message if available
              dashboardContainer.innerHTML = `<div class="error-container"><p><i class="fas fa-exclamation-triangle"></i> Error fetching tables: ${error.message}</p></div>`;
-             // Add retry logic if needed
          }
+         // No separate notification needed if error shown in container, unless desired
     }
 }
-
 function populateDashboard(tables) {
      console.log("populateDashboard: Function called with tables:", tables); // Log: Check tables received
      if (!dashboardContainer) {
@@ -502,94 +494,67 @@ function navigateToTable(tableName) {
     selectTable(tableName); // Fetch data for the selected table
 }
 
+// Updated selectTable function (uses real API calls)
 async function selectTable(tableName) {
-    if (!currentUser) return;
-    if (!dataTableContainer || !selectedTableHeader || !addRecordBtn) return;
+    // currentUser check - important for authenticated routes
+    if (!currentUser) {
+        showNotification("Please log in to view table data.", "error");
+        // Optionally redirect to login view: showAuthView(); showLoginForm();
+        return;
+    }
+    if (!dataTableContainer || !selectedTableHeader || !addRecordBtn) {
+         console.error("selectTable: Missing required DOM elements.");
+         return; // Safety checks
+     }
 
     dataTableContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading data...</div>';
     selectedTableHeader.textContent = `Loading ${tableName.replace(/_/g, ' ')}...`;
     addRecordBtn.disabled = true;
     currentTable = tableName;
-    console.log(`selectTable: Fetching data for ${tableName}`);
+    console.log(`selectTable: Fetching REAL structure and data for ${tableName}`);
 
     try {
-         // --- FAKE DATA SIMULATION ---
-         console.log(`selectTable: Simulating API calls for ${tableName}...`);
-         await new Promise(resolve => setTimeout(resolve, 600)); // Simulate delay
+        // --- Fetch REAL Structure ---
+        console.log(`selectTable: Fetching structure from ${API_BASE_URL}/tables/${tableName}/structure`);
+        // Use authenticatedFetch as these routes should be protected later
+        const structureResponse = await authenticatedFetch(`${API_BASE_URL}/tables/${tableName}/structure`);
+        if (!structureResponse.ok) {
+            let errorMsg = `Failed structure fetch (Status: ${structureResponse.status})`;
+            // Try to get more specific error from backend JSON response
+            try { const errData = await structureResponse.json(); errorMsg = errData.error || errorMsg; } catch(e) {}
+            throw new Error(errorMsg);
+        }
+        tableStructure = await structureResponse.json(); // Store real structure
+        console.log(`selectTable: Received structure for ${tableName}:`, tableStructure);
 
-         let simulatedStructure = [];
-         let simulatedData = [];
-         const lowerTableName = tableName.toLowerCase();
-         let pkField = `${lowerTableName}_id`; // Default guess
+        // --- Fetch REAL Data ---
+        console.log(`selectTable: Fetching data from ${API_BASE_URL}/tables/${tableName}`);
+        // Use authenticatedFetch here too
+        const dataResponse = await authenticatedFetch(`${API_BASE_URL}/tables/${tableName}`);
+        if (!dataResponse.ok) {
+             let errorMsg = `Failed data fetch (Status: ${dataResponse.status})`;
+             try { const errData = await dataResponse.json(); errorMsg = errData.error || errorMsg; } catch(e) {}
+            throw new Error(errorMsg);
+        }
+        tableData = await dataResponse.json(); // Store real data
+        console.log(`selectTable: Received data for ${tableName}:`, tableData);
 
-         // Add specific structures/data for known tables
-         switch (tableName) {
-             case 'EMPLOYEE':
-                 pkField = 'employee_id';
-                 simulatedStructure = [ { Field: pkField, Type: 'int', Key: 'PRI', Extra: 'auto_increment' }, { Field: 'first_name', Type: 'varchar(50)', Null: 'NO' }, { Field: 'last_name', Type: 'varchar(50)', Null: 'NO' }, { Field: 'role', Type: 'varchar(30)' }, { Field: 'hire_date', Type: 'date' } ];
-                 simulatedData = [ { [pkField]: 1, first_name: 'John', last_name: 'Doe', role: 'Manager', hire_date: '2022-08-15'}, { [pkField]: 2, first_name: 'Jane', last_name: 'Smith', role: 'Greenskeeper', hire_date: '2023-01-20'}, ];
-                 break;
-            case 'EMPLOYEE_CONTACT':
-                 pkField = 'contact_id'; // Guess PK
-                 simulatedStructure = [ { Field: pkField, Type: 'int', Key: 'PRI', Extra: 'auto_increment' }, { Field: 'employee_id', Type: 'int', Null: 'NO' }, { Field: 'phone', Type: 'varchar(20)' }, { Field: 'email', Type: 'varchar(100)' } ];
-                 simulatedData = [ { [pkField]: 1, employee_id: 1, phone: '555-1234', email: 'john.doe@golf.com'}, { [pkField]: 2, employee_id: 2, phone: '555-5678', email: 'jane.s@golf.com'} ];
-                 break;
-            case 'GOLF_COURSE':
-                 pkField = 'course_id';
-                 simulatedStructure = [ { Field: pkField, Type: 'int', Key: 'PRI', Extra: 'auto_increment' }, { Field: 'name', Type: 'varchar(100)', Null: 'NO' }, { Field: 'location', Type: 'varchar(150)'}, { Field: 'par', Type: 'int'} ];
-                 simulatedData = [ { [pkField]: 1, name: 'Sunset Hills', location: 'Main Street', par: 72 }, { [pkField]: 2, name: 'Ocean Breeze', location: 'Coastal Way', par: 70 }, ];
-                 break;
-            case 'EQUIPMENT':
-                 pkField = 'equipment_id';
-                 simulatedStructure = [ { Field: pkField, Type: 'int', Key: 'PRI', Extra: 'auto_increment'}, { Field: 'name', Type: 'varchar(100)', Null: 'NO'}, { Field: 'type', Type: 'varchar(50)'}, { Field: 'purchase_date', Type: 'date'}, { Field: 'condition', Type: 'varchar(50)'} ];
-                 simulatedData = [ { [pkField]: 101, name: 'Lawn Mower X1', type: 'Mower', purchase_date: '2023-03-01', condition: 'Good'}, { [pkField]: 102, name: 'Golf Cart #5', type: 'Vehicle', purchase_date: '2022-11-15', condition: 'Fair'} ];
-                 break;
-            case 'EQUIPMENT_TYPE':
-                 pkField = 'type_id'; // Guess PK
-                 simulatedStructure = [ { Field: pkField, Type: 'int', Key: 'PRI', Extra: 'auto_increment'}, { Field: 'type_name', Type: 'varchar(50)', Null: 'NO'}, { Field: 'description', Type: 'text'} ];
-                 simulatedData = [ { [pkField]: 1, type_name: 'Mower', description: 'Grass cutting equipment'}, { [pkField]: 2, type_name: 'Vehicle', description: 'Transport vehicles'} ];
-                 break;
-            case 'HOLE':
-                 pkField = 'hole_id'; // Guess PK
-                 simulatedStructure = [ { Field: pkField, Type: 'int', Key: 'PRI', Extra: 'auto_increment' }, { Field: 'course_id', Type: 'int', Null: 'NO' }, { Field: 'hole_number', Type: 'int', Null: 'NO' }, { Field: 'par', Type: 'int' }, { Field: 'length_yards', Type: 'int' } ];
-                 simulatedData = [ { [pkField]: 1, course_id: 1, hole_number: 1, par: 4, length_yards: 380 }, { [pkField]: 2, course_id: 1, hole_number: 2, par: 5, length_yards: 510 } ];
-                 break;
-            // *** ADD MORE CASE STATEMENTS FOR YOUR TABLES HERE ***
-            // e.g., case 'MANAGER': ... ; break;
-            // e.g., case 'PLAYERACCOUNT': ... ; break;
-
-             default:
-                 // Generic fallback - ENSURE PK IS MARKED
-                 console.warn(`selectTable: Using generic structure/data for table ${tableName}`);
-                 pkField = `${lowerTableName}_id`; // Default PK name guess
-                 simulatedStructure = [
-                    { Field: pkField, Type: 'int', Key: 'PRI', Extra: 'auto_increment'}, // IMPORTANT: Mark as PK
-                    { Field: 'name', Type: 'varchar(100)', Null: 'NO'},
-                    { Field: 'description', Type: 'text'},
-                    { Field: 'created_at', Type: 'datetime', Default: 'CURRENT_TIMESTAMP'}
-                 ];
-                 simulatedData = [
-                     { [pkField]: 1, name: `Sample ${tableName} 1`, description: `Description for ${tableName} 1`, created_at: new Date().toISOString() },
-                     { [pkField]: 2, name: `Sample ${tableName} 2`, description: null, created_at: new Date().toISOString() }
-                 ];
-                 break;
-         }
-
-         tableStructure = simulatedStructure;
-         tableData = simulatedData;
-         console.log(`selectTable: Fake data/structure loaded for ${tableName}`);
-         // --- END FAKE DATA ---
-
+        // --- Update UI ---
         selectedTableHeader.textContent = tableName.replace(/_/g, ' ');
+        // Enable Add button ONLY if structure was successfully fetched
         addRecordBtn.disabled = false;
-        renderTable();
+        renderTable(); // Render table with real structure and data
 
     } catch (error) {
+        // Handle errors from either fetch call
         console.error(`Error selecting table ${tableName}:`, error);
         if (dataTableContainer) {
+             // Display specific error message if available
              dataTableContainer.innerHTML = `<div class="error-container"><p><i class="fas fa-exclamation-triangle"></i> Failed to load data for ${tableName}: ${error.message}</p></div>`;
          }
         if (selectedTableHeader) selectedTableHeader.textContent = `Error loading ${tableName.replace(/_/g, ' ')}`;
+        // Show notification for fetch errors
+        showNotification(`Error loading ${tableName}: ${error.message}`, 'error');
     }
 }
 
@@ -764,104 +729,107 @@ function openAddRecordModal() {
     addRecordModal.style.display = 'block';
 }
 
+// Updated handleSubmitRecord function (uses real API call)
 async function handleSubmitRecord() {
     if (!addRecordForm || !currentTable) return;
     console.log(`handleSubmitRecord: Submitting for table ${currentTable}`);
 
     if (!addRecordForm.checkValidity()) {
         showNotification('Please fill out all required fields correctly.', 'error');
-        addRecordForm.reportValidity(); // Highlight invalid fields
+        addRecordForm.reportValidity();
         return;
     }
 
+    // Collect form data
     const formData = {};
     const formElements = addRecordForm.elements;
     for (let i = 0; i < formElements.length; i++) {
         const element = formElements[i];
         if (element.name) {
-             // Handle empty optional numbers as null (check required attribute)
-             if (element.type === 'number' && element.value === '' && !element.required) {
-                 formData[element.name] = null;
-             } else {
-                formData[element.name] = element.value; // Send empty strings for text if not required
-             }
+             if (element.type === 'number' && element.value === '' && !element.required) formData[element.name] = null;
+             else formData[element.name] = element.value;
         }
     }
-    console.log("handleSubmitRecord: Submitting data:", formData);
+    console.log("handleSubmitRecord: Submitting data via API:", formData);
 
     try {
-        // **REAL APP:** Use authenticatedFetch POST
-        // const response = await authenticatedFetch(`/api/tables/${currentTable}`, { method: 'POST', body: JSON.stringify(formData) });
-        // const result = await response.json();
-        // if (!response.ok) throw new Error(result.error || `Server error: ${response.status}`);
-        // --- FAKE SUCCESS ---
-         console.log(`handleSubmitRecord: Simulating API POST for ${currentTable}...`);
-         await new Promise(resolve => setTimeout(resolve, 500));
-         // Add to local tableData for simulation
-         const pkCol = tableStructure.find(col => col.Key === 'PRI')?.Field || (tableStructure.length > 0 ? tableStructure[0].Field : null);
-         let newId = 1;
-         if (pkCol && tableData.length > 0) {
-             newId = Math.max(0, ...tableData.map(r => parseInt(r[pkCol]) || 0)) + 1;
-         }
-         const newRecord = { ...formData };
-         if (pkCol) newRecord[pkCol] = newId; // Add simulated PK if found
-         tableData.push(newRecord); // Add to the array
-         const result = { message: 'Record added successfully!' };
-         console.log(`handleSubmitRecord: Simulated adding record (ID ${newId}):`, newRecord);
-        // --- END FAKE ---
+        // Make the actual API call using authenticatedFetch
+        const response = await authenticatedFetch(`${API_BASE_URL}/tables/${currentTable}`, {
+            method: 'POST',
+            // headers added by authenticatedFetch
+            body: JSON.stringify(formData)
+        });
 
+        const result = await response.json(); // Assume backend sends { message: '...', insertId: ... } or { error: '...' }
+
+        if (!response.ok || response.status !== 201) { // Check for non-successful status (expect 201 Created)
+             throw new Error(result.error || `Server error: ${response.status}`);
+        }
+
+        // --- Success ---
         addRecordModal.style.display = 'none';
         showNotification(result.message || 'Record added successfully!', 'success');
-        renderTable(); // Re-render table with the new data
+
+        // Refresh the table data from the backend to show the new record
+        console.log("handleSubmitRecord: Record added, refreshing table data...");
+        awaitselectTable(currentTable); // Call selectTable to re-fetch and re-render
 
     } catch (error) {
         console.error("handleSubmitRecord: Error adding record:", error);
         showNotification(`Failed to add record: ${error.message}`, 'error');
+        // Keep modal open on error? Optional.
     }
 }
 
-async function deleteRecord(id, primaryKeyName, rowIndex) {
-     if (!currentTable) return;
-     console.log(`deleteRecord: Attempting delete for ${currentTable}, ${primaryKeyName}=${id}, rowIndex=${rowIndex}`);
+// Updated deleteRecord function (uses real API call)
+async function deleteRecord(id, primaryKeyName, rowIndex) { // rowIndex no longer needed for API call itself
+    if (!currentTable) return;
+    console.log(`deleteRecord: Attempting delete via API for ${currentTable}, ${primaryKeyName}=${id}`);
 
-     if (!confirm(`Are you sure you want to delete record with ${primaryKeyName} = ${id} from ${currentTable.replace(/_/g, ' ')}?`)) {
-          console.log("Delete cancelled by user.");
-          return;
-      }
-
-    try {
-         // **REAL APP:** Use authenticatedFetch DELETE
-        // const response = await authenticatedFetch(`/api/tables/${currentTable}/${id}?primaryKey=${encodeURIComponent(primaryKeyName)}`, { method: 'DELETE' });
-        // const result = await response.json(); // Expects { message: '...' } or { error: '...' }
-        // if (!response.ok) throw new Error(result.error || `Failed to delete record. Status: ${response.status}`);
-         // --- FAKE SUCCESS ---
-          console.log(`deleteRecord: Simulating API DELETE for ${currentTable}, ${primaryKeyName}=${id}...`);
-          await new Promise(resolve => setTimeout(resolve, 500));
-          // Remove from local tableData using rowIndex (more reliable than searching by ID if types mismatch)
-          if (rowIndex >= 0 && rowIndex < tableData.length) {
-              const deletedItem = tableData.splice(rowIndex, 1);
-               console.log(`deleteRecord: Simulated removing record at index ${rowIndex}:`, deletedItem);
-          } else {
-               console.warn(`deleteRecord: Invalid rowIndex ${rowIndex} provided. Attempting findById.`);
-               // Fallback: Try finding by ID (less efficient, potential type mismatch)
-               const indexById = tableData.findIndex(item => item[primaryKeyName] == id); // Loose equality
-               if (indexById !== -1) {
-                   const deletedItem = tableData.splice(indexById, 1);
-                    console.log(`deleteRecord: Simulated removing record at index ${indexById} (found by ID):`, deletedItem);
-               } else {
-                    throw new Error(`Simulated delete failed: Record with ${primaryKeyName}=${id} not found in local data.`);
-               }
-          }
-          const result = { message: 'Record deleted successfully!' };
-         // --- END FAKE ---
-
-        showNotification(result.message || 'Record deleted successfully!', 'success');
-        renderTable(); // Re-render table without the deleted data
-
-    } catch (error) {
-         console.error("deleteRecord: Error deleting record:", error);
-        showNotification(`Error deleting record: ${error.message}`, 'error');
+    // Ensure PK Name is valid (basic check)
+    if (!primaryKeyName || typeof primaryKeyName !== 'string' || primaryKeyName.length === 0) {
+        showNotification(`Cannot delete: Invalid primary key identifier provided.`, 'error');
+        console.error("deleteRecord: primaryKeyName is invalid or missing:", primaryKeyName);
+        return;
     }
+
+    if (!confirm(`Are you sure you want to delete record with ${primaryKeyName} = ${id} from ${currentTable.replace(/_/g, ' ')}?`)) {
+         console.log("Delete cancelled by user.");
+         return;
+     }
+
+   try {
+       // Make the actual API call using authenticatedFetch
+       // Pass the primaryKeyName as a query parameter for the backend
+       const response = await authenticatedFetch(
+           `${API_BASE_URL}/tables/${currentTable}/${id}?primaryKey=${encodeURIComponent(primaryKeyName)}`,
+           { method: 'DELETE' }
+       );
+
+       // Check if response is ok, then try parsing JSON
+       if (!response.ok) {
+           let errorMsg = `Failed to delete record (Status: ${response.status})`;
+            try {
+                const errorData = await response.json(); // Try to get error from body
+                errorMsg = errorData.error || errorMsg;
+            } catch (e) { /* Ignore if body isn't JSON */ }
+           throw new Error(errorMsg);
+       }
+
+       // If response.ok, try to parse potential success message
+       const result = await response.json(); // Expects { message: '...' }
+
+       // --- Success ---
+       showNotification(result.message || 'Record deleted successfully!', 'success');
+
+       // Refresh the table data from the backend to show the change
+       console.log("deleteRecord: Record deleted, refreshing table data...");
+       await selectTable(currentTable); // Call selectTable to re-fetch and re-render
+
+   } catch (error) {
+        console.error("deleteRecord: Error deleting record:", error);
+       showNotification(`Error deleting record: ${error.message}`, 'error');
+   }
 }
 
 // === Notifications ===

@@ -85,6 +85,13 @@ const authenticateToken = (req, res, next) => {
 };
 
 // === Apply Custom Middleware ===
+app.use('/api', checkDbConnection);
+// Auth Check applies ONLY to /api/tables/* AND the new /api/admin/* routes
+app.use('/api/tables', authenticateToken);
+app.use('/api/admin', authenticateToken); // <-- Protect admin routes too
+
+
+// === Apply Custom Middleware ===
 // Apply DB Check to ALL routes starting with /api
 app.use('/api', checkDbConnection);
 // Apply Auth Check ONLY to routes starting with /api/tables
@@ -137,6 +144,26 @@ app.post('/api/auth/login', async (req, res, next) => {
     } catch (error) { next(error); }
 });
 
+// GET /api/admin/users - Fetch all users (Admin Only)
+app.get('/api/admin/users', async (req, res, next) => {
+    console.log(`Admin route /api/admin/users accessed by: ${req.user?.username} (Role: ${req.user?.role})`);
+
+    // 1. Check if user is Admin (user info is attached by authenticateToken middleware)
+    if (!req.user || req.user.role !== 'admin') {
+        console.warn("Forbidden: Non-admin user attempted to access user list.");
+        return res.status(403).json({ error: 'Access Forbidden: Admin role required.' });
+    }
+
+    // 2. Fetch users from DB (excluding password hash)
+    try {
+        const query = 'SELECT user_id, username, role, created_at FROM users ORDER BY user_id';
+        const [users] = await dbPool.query(query);
+        res.json(users); // Send the list of users
+    } catch (error) {
+        console.error("Error fetching users for admin:", error);
+        next(error); // Pass error to global handler
+    }
+});
 
 // --- Table Data Routes (checkDbConnection AND authenticateToken middleware applied) ---
 

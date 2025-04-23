@@ -450,53 +450,83 @@ async function fetchTablesAndPopulateDashboard() {
          // No separate notification needed if error shown in container, unless desired
     }
 }
+
+// --- MODIFY this function in public/script.js ---
 function populateDashboard(tables) {
-     console.log("populateDashboard: Function called with tables:", tables); // Log: Check tables received
-     if (!dashboardContainer) {
-          console.error("populateDashboard: Dashboard container not found!");
-          return;
-      }
-     dashboardContainer.innerHTML = ''; // Clear loading/error
+    console.log("populateDashboard: Function called with tables:", tables);
+    if (!dashboardContainer) {
+         console.error("populateDashboard: Dashboard container not found!");
+         return;
+     }
+    dashboardContainer.innerHTML = ''; // Clear loading/error
 
-    if (!tables || tables.length === 0) {
-        console.log("populateDashboard: No tables to display."); // Log: Check if tables array is empty
-        dashboardContainer.innerHTML = '<p class="no-data">No tables found or accessible.</p>';
-        return;
-    }
-
-    // Function to get an appropriate icon
-    function getIconForTable(tableName) {
-        const lowerName = tableName.toLowerCase();
-        if (lowerName.includes('employee_contact')) return 'fa-address-book';
-        if (lowerName.includes('employee') || lowerName.includes('user') || lowerName.includes('manager') || lowerName.includes('playeraccount')) return 'fa-users';
-        if (lowerName.includes('golf') || lowerName.includes('course') || lowerName.includes('hole')) return 'fa-golf-ball-tee';
-        if (lowerName.includes('equipment_type')) return 'fa-tags';
-        if (lowerName.includes('equipment')) return 'fa-wrench';
-        if (lowerName.includes('booking') || lowerName.includes('reserv') || lowerName.includes('tee_time')) return 'fa-calendar-check';
-        if (lowerName.includes('member')) return 'fa-id-card';
-        if (lowerName.includes('report') || lowerName.includes('log')) return 'fa-chart-line';
-        if (lowerName.includes('player')) return 'fa-person-running'; // Might be covered by 'users' above
-        return 'fa-table'; // Default icon
-    }
-
-    tables.forEach(tableName => {
-        console.log(`populateDashboard: Creating card for ${tableName}`); // Log: Check loop execution
-        const card = document.createElement('div');
-        card.classList.add('table-card');
-        card.setAttribute('role', 'button');
-        card.setAttribute('tabindex', '0');
-        const iconClass = getIconForTable(tableName);
-        card.innerHTML = `
-            <i class="fas ${iconClass}"></i>
-            <span>${tableName.replace(/_/g, ' ')}</span>
+    // --- START: Add User Management Card for Admin ---
+    if (currentUser && currentUser.role === 'admin') {
+        console.log("populateDashboard: Adding User Management card for admin.");
+        const userCard = document.createElement('div');
+        userCard.classList.add('table-card', 'admin-card'); // Add specific class if needed
+        userCard.setAttribute('role', 'button');
+        userCard.setAttribute('tabindex', '0');
+        // Use a suitable icon for user management
+        userCard.innerHTML = `
+            <i class="fas fa-users-cog"></i>
+            <span>User Management</span>
         `;
-        card.addEventListener('click', () => navigateToTable(tableName));
-        card.addEventListener('keypress', (e) => { if (e.key === 'Enter') navigateToTable(tableName); });
-        console.log(`populateDashboard: Appending card for ${tableName} to`, dashboardContainer);
-        dashboardContainer.appendChild(card);
-    });
-    console.log("populateDashboard: Finished adding cards.");
+        // Add event listener to call a NEW function to load users
+        userCard.addEventListener('click', () => loadAndDisplayUsers());
+        userCard.addEventListener('keypress', (e) => { if (e.key === 'Enter') loadAndDisplayUsers(); });
+        dashboardContainer.appendChild(userCard); // Add admin card first
+    }
+    // --- END: Add User Management Card ---
+
+
+   if (!tables || tables.length === 0) {
+       // Check if the *only* thing missing is tables, but admin card was added
+       if (dashboardContainer.children.length === 0) {
+            console.log("populateDashboard: No tables or admin cards to display.");
+            dashboardContainer.innerHTML = '<p class="no-data">No tables found or accessible.</p>';
+        } else {
+            console.log("populateDashboard: No regular tables found, but admin card present.");
+        }
+       return;
+   }
+
+   // Function to get an appropriate icon (keep this helper)
+   function getIconForTable(tableName) {
+    const lowerName = tableName.toLowerCase();
+    if (lowerName.includes('employee_contact')) return 'fa-address-book';
+    if (lowerName.includes('employee') || lowerName.includes('user') || lowerName.includes('manager') || lowerName.includes('playeraccount')) return 'fa-users';
+    if (lowerName.includes('golf') || lowerName.includes('course') || lowerName.includes('hole')) return 'fa-golf-ball-tee';
+    if (lowerName.includes('equipment_type')) return 'fa-tags';
+    if (lowerName.includes('equipment')) return 'fa-wrench';
+    if (lowerName.includes('booking') || lowerName.includes('reserv') || lowerName.includes('tee_time')) return 'fa-calendar-check';
+    if (lowerName.includes('member')) return 'fa-id-card';
+    if (lowerName.includes('report') || lowerName.includes('log')) return 'fa-chart-line';
+    if (lowerName.includes('player')) return 'fa-person-running'; // Might be covered by 'users' above
+    return 'fa-table'; // Default icon
 }
+
+   // Add cards for the regular database tables
+   tables.forEach(tableName => {
+       console.log(`populateDashboard: Creating card for table ${tableName}`);
+       const card = document.createElement('div');
+       card.classList.add('table-card');
+       card.setAttribute('role', 'button');
+       card.setAttribute('tabindex', '0');
+       const iconClass = getIconForTable(tableName);
+       card.innerHTML = `
+           <i class="fas ${iconClass}"></i>
+           <span>${tableName.replace(/_/g, ' ')}</span>
+       `;
+       // Regular table cards still navigate normally
+       card.addEventListener('click', () => navigateToTable(tableName));
+       card.addEventListener('keypress', (e) => { if (e.key === 'Enter') navigateToTable(tableName); });
+       dashboardContainer.appendChild(card);
+   });
+   console.log("populateDashboard: Finished adding cards.");
+}
+
+
 
 function navigateToTable(tableName) {
     console.log(`Navigating to table: ${tableName}`); // Log navigation
@@ -686,6 +716,152 @@ function renderTable() {
          // Add edit button placeholder if needed later
     });
     console.log(`renderTable: Finished rendering ${tableData.length} rows for ${currentTable}`);
+}
+
+// --- ADD these two new functions to public/script.js ---
+
+// Function to fetch user data from the admin endpoint and display it
+async function loadAndDisplayUsers() {
+    // Check if logged in user is admin (should be, if they clicked the card, but double-check)
+    if (!currentUser || currentUser.role !== 'admin') {
+        showNotification("Access Denied: Admin role required.", "error");
+        return;
+    }
+    // Ensure necessary elements exist
+    if (!dataTableContainer || !selectedTableHeader || !addRecordBtn || !backToDashboardBtn) {
+        console.error("loadAndDisplayUsers: Missing required DOM elements for table view.");
+        return;
+    }
+
+    console.log("loadAndDisplayUsers: Fetching user list for admin...");
+    showTableViewOnly(); // Switch to the table view area
+
+    // Update header and disable 'Add Record' for user view
+    selectedTableHeader.textContent = 'User Management';
+    addRecordBtn.disabled = true; // Can't add users via the generic 'Add Record'
+    addRecordBtn.style.display = 'none'; // Hide the button entirely
+    backToDashboardBtn.style.display = 'inline-flex'; // Ensure back button is visible
+
+    dataTableContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading users...</div>';
+    currentTable = null; // Clear currentTable context when viewing users
+
+    try {
+        console.log(`loadAndDisplayUsers: Fetching from ${API_BASE_URL}/admin/users`);
+        const response = await authenticatedFetch(`${API_BASE_URL}/admin/users`);
+
+        if (!response.ok) {
+            let errorMsg = `Failed user fetch (Status: ${response.status})`;
+            try { const errData = await response.json(); errorMsg = errData.error || errorMsg; } catch(e) {}
+            throw new Error(errorMsg);
+        }
+
+        const users = await response.json(); // Get the list of users
+        console.log("loadAndDisplayUsers: Received users:", users);
+
+        renderUsersTable(users); // Call function to display the users
+
+    } catch (error) {
+        console.error("Error loading users:", error);
+        if (dataTableContainer) {
+            dataTableContainer.innerHTML = `<div class="error-container"><p><i class="fas fa-exclamation-triangle"></i> Failed to load user list: ${error.message}</p></div>`;
+        }
+        // Also update header to show error
+        selectedTableHeader.textContent = 'Error Loading Users';
+    }
+}
+
+// Function to render the user data into a table
+function renderUsersTable(users) {
+    if (!dataTableContainer) { console.error("renderUsersTable: dataTableContainer element not found!"); return; }
+    console.log(`renderUsersTable: Rendering ${users?.length ?? 0} users.`);
+
+    // Reset container and create table structure
+    dataTableContainer.innerHTML = `<table id="user-data-table"><thead><tr></tr></thead><tbody></tbody></table>`;
+    const dataTable = dataTableContainer.querySelector('#user-data-table');
+    const tableHead = dataTable?.querySelector('thead tr');
+    const tableBody = dataTable?.querySelector('tbody');
+
+    if (!tableHead || !tableBody) {
+        console.error("renderUsersTable: Could not find table head or body elements.");
+        dataTableContainer.innerHTML = '<p class="error-container">Error: Could not create user table structure.</p>';
+        return;
+    }
+
+    // Define Headers for User Table
+    const headers = ['User ID', 'Username', 'Role', 'Created At']; // Add 'Actions' if needed later
+    headers.forEach(headerText => {
+        const th = document.createElement('th');
+        th.textContent = headerText;
+        tableHead.appendChild(th);
+    });
+    // Example: Add Actions header if planning delete/edit role later
+    // const actionsHeader = document.createElement('th');
+    // actionsHeader.textContent = 'Actions';
+    // actionsHeader.classList.add('action-column');
+    // tableHead.appendChild(actionsHeader);
+
+
+    // Populate Table Body
+    tableBody.innerHTML = ''; // Clear any default
+
+    if (!users || users.length === 0) {
+        console.log("renderUsersTable: No users found.");
+        const noDataRow = tableBody.insertRow();
+        const noDataCell = noDataRow.insertCell();
+        // Adjust colspan based on number of headers (including potential Actions)
+        noDataCell.colSpan = headers.length; // + (actionsHeader ? 1 : 0);
+        noDataCell.textContent = 'No users found in the database.';
+        noDataCell.classList.add('no-data');
+        return;
+    }
+
+    // Loop through user data
+    users.forEach(user => {
+        const tr = tableBody.insertRow();
+
+        // User ID
+        let td = tr.insertCell();
+        td.textContent = user.user_id;
+
+        // Username
+        td = tr.insertCell();
+        td.textContent = user.username;
+
+        // Role
+        td = tr.insertCell();
+        td.textContent = user.role;
+        // Optionally add styling based on role
+        // td.classList.add(`role-${user.role}`);
+
+        // Created At
+        td = tr.insertCell();
+        try {
+            td.textContent = user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A';
+        } catch (e) {
+            td.textContent = 'Invalid Date';
+        }
+
+        // Example: Actions Cell (if header added)
+        // const actionsTd = tr.insertCell();
+        // actionsTd.classList.add('action-column');
+        // // Add buttons here later (e.g., delete user, change role)
+        // actionsTd.innerHTML = `
+        //    <button class="action-btn delete" title="Delete User (NYI)"><i class="fas fa-trash"></i></button>
+        //    <button class="action-btn edit" title="Edit Role (NYI)"><i class="fas fa-user-edit"></i></button>
+        // `;
+        // Add event listeners to these buttons later
+    });
+
+    console.log(`renderUsersTable: Finished rendering user table.`);
+}
+
+// --- Also MODIFY navigateToTable ---
+// Ensure Add button is re-enabled when navigating AWAY from user management
+function navigateToTable(tableName) {
+    console.log(`Navigating to table: ${tableName}`);
+    if (addRecordBtn) addRecordBtn.style.display = 'inline-flex'; // Ensure Add button is visible again
+    showTableViewOnly();
+    selectTable(tableName); // Fetch data for the selected table
 }
 
 // === Modal & Form Submission (Add/Delete Records) ===

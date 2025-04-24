@@ -9,7 +9,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 
-<body> <header>
+<body>
+    <header>
         <h1>Golf Course Database Manager</h1>
         <div id="user-status" class="user-status" style="display: none;">
             <span id="username-display"></span>
@@ -54,7 +55,7 @@
                             <label for="signup-password">Password</label>
                             <input type="password" id="signup-password" name="password" required>
                         </div>
-                         <div class="form-group">
+                        <div class="form-group">
                             <label for="signup-confirm-password">Confirm Password</label>
                             <input type="password" id="signup-confirm-password" name="confirmPassword" required>
                         </div>
@@ -63,16 +64,20 @@
                             <select id="signup-role" name="role" required>
                                 <option value="member">Member/Guest</option>
                                 <option value="employee">Employee</option>
-                                </select>
-                            <small id="admin-role-info" style="display: none; color: var(--secondary-color); margin-top: 5px;">Admin role is for initial setup.</small>
+                            </select>
+                            <small id="admin-role-info"
+                                style="display: none; color: var(--secondary-color); margin-top: 5px;">Admin role is for
+                                initial setup.</small>
                         </div>
                         <div id="signup-error" class="auth-error" style="display: none;"></div>
                         <button type="submit" class="btn btn-success btn-block">Sign Up</button>
                     </form>
-                     <p class="auth-switch">Already have an account? <a href="#" id="show-login">Login</a></p>
+                    <p class="auth-switch">Already have an account? <a href="#" id="show-login">Login</a></p>
                 </div>
 
-            </div> <div id="app-view" style="display: none;"> <div id="dashboard-view" class="content">
+            </div>
+            <div id="app-view" style="display: none;">
+                <div id="dashboard-view" class="content">
                     <h2>Dashboard</h2>
                     <div id="dashboard-container" class="dashboard-grid">
                         <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading tables...</div>
@@ -80,42 +85,262 @@
                 </div>
 
                 <div id="table-view" class="content" style="display: none;">
-                   <div class="table-actions">
-                       <button id="back-to-dashboard-btn" class="btn btn-secondary">
-                           <i class="fas fa-arrow-left"></i> Back
-                       </button>
-                       <h2 id="selected-table">Select a table</h2>
-                       <button id="add-record-btn" class="btn btn-primary" disabled>
-                           <i class="fas fa-plus"></i> Add Record
-                       </button>
-                   </div>
-                   <div class="table-container">
-                       <table id="data-table">
-                           <thead><tr></tr></thead>
-                           <tbody></tbody>
-                       </table>
-                   </div>
+                    <div class="table-actions">
+                        <button id="back-to-dashboard-btn" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                        <h2 id="selected-table">Select a table</h2>
+                        <button id="add-record-btn" class="btn btn-primary" disabled>
+                            <i class="fas fa-plus"></i> Add Record
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table id="data-table">
+                            <thead>
+                                <tr></tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                     <div id="add-record-modal" class="modal">
-                       <div class="modal-content">
-                           <div class="modal-header">
-                               <h2 id="modal-title">Add Record</h2>
-                               <span class="close">&times;</span>
-                           </div>
-                           <div class="modal-body">
-                               <form id="add-record-form">
-                                   </form>
-                           </div>
-                           <div class="modal-footer">
-                               <button type="button" id="submit-record" class="btn btn-success">Submit</button>
-                               <button type="button" id="cancel-record" class="btn btn-danger">Cancel</button>
-                           </div>
-                       </div>
-                   </div>
-                   <div id="notification" class="notification">
-                       <span id="notification-message"></span>
-                   </div>
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h2 id="modal-title">Add Record</h2>
+                                <span class="close">&times;</span>
+                            </div>
+                            <div class="modal-body">
+                                <form id="add-record-form">
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" id="submit-record" class="btn btn-success">Submit</button>
+                                <button type="button" id="cancel-record" class="btn btn-danger">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="notification" class="notification">
+                        <span id="notification-message"></span>
+                    </div>
+                </div>
 
-                </div> <div id="account-modal" class="modal">
+                <!-- New Statistics View -->
+                <div id="statistics-view" class="content" style="display: none;">
+                    <div class="view-header">
+                        <button id="back-to-dashboard-from-stats-btn" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Dashboard
+                        </button>
+                        <h2>Golf Course Statistics</h2>
+                        <button id="refresh-stats-btn" class="btn btn-primary">
+                            <i class="fas fa-sync-alt"></i> Refresh Data
+                        </button>
+                    </div>
+
+                    <div class="stats-container">
+                        <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading statistics...</div>
+
+                        <div class="stats-grid" style="display: none;">
+                            <!-- Table Record Counts -->
+                            <div class="stats-card">
+                                <h3><i class="fas fa-table"></i> Table Record Counts</h3>
+                                <div class="stats-table-counts"></div>
+                            </div>
+
+                            <!-- Membership by Plan Type -->
+                            <div class="stats-card">
+                                <h3><i class="fas fa-users"></i> Membership by Plan Type</h3>
+                                <div class="stats-membership-chart"></div>
+                            </div>
+
+                            <!-- Tee Time Booking Status -->
+                            <div class="stats-card">
+                                <h3><i class="fas fa-calendar-check"></i> Tee Time Status</h3>
+                                <div class="stats-teetime-chart"></div>
+                            </div>
+
+                            <!-- Equipment Availability -->
+                            <div class="stats-card">
+                                <h3><i class="fas fa-golf-ball"></i> Equipment Availability</h3>
+                                <div class="stats-equipment-chart"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- New Member View -->
+                <div id="member-view" class="content" style="display: none;">
+                    <div class="view-header">
+                        <button id="back-to-dashboard-from-member-btn" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Dashboard
+                        </button>
+                        <h2>Member Portal</h2>
+                        <button id="refresh-member-data-btn" class="btn btn-primary">
+                            <i class="fas fa-sync-alt"></i> Refresh Data
+                        </button>
+                    </div>
+
+                    <div class="member-container">
+                        <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading your information...</div>
+
+                        <div class="member-dashboard-grid" style="display: none;">
+                            <!-- Member Profile Card -->
+                            <div class="member-card">
+                                <div class="card-header">
+                                    <h3><i class="fas fa-user-circle"></i> My Profile</h3>
+                                    <button id="edit-profile-btn" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                </div>
+                                <div class="member-profile-content">
+                                    <!-- Profile content will be loaded dynamically -->
+                                </div>
+                            </div>
+
+                            <!-- Membership Plan Card -->
+                            <div class="member-card">
+                                <div class="card-header">
+                                    <h3><i class="fas fa-id-card"></i> My Membership</h3>
+                                    <button id="update-plan-btn" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-sync-alt"></i> Change Plan
+                                    </button>
+                                </div>
+                                <div class="membership-content">
+                                    <!-- Membership content will be loaded dynamically -->
+                                </div>
+                            </div>
+
+                            <!-- Tee Time Booking Card -->
+                            <div class="member-card wide-card">
+                                <div class="card-header">
+                                    <h3><i class="fas fa-calendar-alt"></i> Tee Times</h3>
+                                    <button id="book-tee-time-btn" class="btn btn-sm btn-success">
+                                        <i class="fas fa-plus"></i> Book New
+                                    </button>
+                                </div>
+                                <div class="tee-times-content">
+                                    <div class="tee-times-tabs">
+                                        <button class="tab-btn active" data-tab="upcoming">Upcoming</button>
+                                        <button class="tab-btn" data-tab="available">Available Slots</button>
+                                        <button class="tab-btn" data-tab="history">History</button>
+                                    </div>
+                                    <div class="tee-times-tab-content">
+                                        <!-- Tee times content will be loaded dynamically -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Equipment Rental Card -->
+                            <div class="member-card wide-card">
+                                <div class="card-header">
+                                    <h3><i class="fas fa-golf-ball"></i> Equipment Rental</h3>
+                                    <button id="rent-equipment-btn" class="btn btn-sm btn-success">
+                                        <i class="fas fa-shopping-cart"></i> Rent Equipment
+                                    </button>
+                                </div>
+                                <div class="equipment-content">
+                                    <div class="equipment-tabs">
+                                        <button class="tab-btn active" data-tab="available-equipment">Available
+                                            Equipment</button>
+                                        <button class="tab-btn" data-tab="my-rentals">My Rentals</button>
+                                    </div>
+                                    <div class="equipment-tab-content">
+                                        <!-- Equipment content will be loaded dynamically -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Member Profile Edit Modal -->
+                <div id="profile-edit-modal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>Edit Profile</h2>
+                            <span class="close">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <form id="profile-edit-form">
+                                <!-- Form fields will be dynamically generated -->
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" id="save-profile-btn" class="btn btn-success">Save Changes</button>
+                            <button type="button" id="cancel-profile-edit-btn" class="btn btn-danger">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Membership Plan Change Modal -->
+                <div id="plan-change-modal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>Change Membership Plan</h2>
+                            <span class="close">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <div class="available-plans">
+                                <!-- Plans will be loaded dynamically -->
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" id="cancel-plan-change-btn" class="btn btn-danger">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tee Time Booking Modal -->
+                <div id="tee-time-modal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>Book Tee Time</h2>
+                            <span class="close">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <form id="tee-time-form">
+                                <div class="form-group">
+                                    <label for="tee-time-date">Date</label>
+                                    <input type="date" id="tee-time-date" required>
+                                </div>
+                                <div class="available-times">
+                                    <!-- Available times will be loaded dynamically -->
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" id="book-selected-time-btn" class="btn btn-success">Book Selected
+                                Time</button>
+                            <button type="button" id="cancel-tee-time-btn" class="btn btn-danger">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Equipment Rental Modal -->
+                <div id="equipment-rental-modal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>Rent Equipment</h2>
+                            <span class="close">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <form id="equipment-rental-form">
+                                <div class="equipment-list">
+                                    <!-- Equipment list will be loaded dynamically -->
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <div class="rental-summary">
+                                <div class="summary-label">Total:</div>
+                                <div class="summary-value">$0.00</div>
+                            </div>
+                            <button type="button" id="confirm-rental-btn" class="btn btn-success">Confirm
+                                Rental</button>
+                            <button type="button" id="cancel-rental-btn" class="btn btn-danger">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="account-modal" class="modal">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h2>Account Settings</h2>
@@ -131,9 +356,14 @@
                             <div id="change-password-section">
                                 <h3>Change Password</h3>
                                 <form id="change-password-form">
-                                    <div class="form-group"> <label for="current-password">Current Password</label> <input type="password" id="current-password" name="currentPassword" required> </div>
-                                    <div class="form-group"> <label for="new-password">New Password</label> <input type="password" id="new-password" name="newPassword" required> </div>
-                                    <div class="form-group"> <label for="confirm-new-password">Confirm New Password</label> <input type="password" id="confirm-new-password" name="confirmNewPassword" required> </div>
+                                    <div class="form-group"> <label for="current-password">Current Password</label>
+                                        <input type="password" id="current-password" name="currentPassword" required>
+                                    </div>
+                                    <div class="form-group"> <label for="new-password">New Password</label> <input
+                                            type="password" id="new-password" name="newPassword" required> </div>
+                                    <div class="form-group"> <label for="confirm-new-password">Confirm New
+                                            Password</label> <input type="password" id="confirm-new-password"
+                                            name="confirmNewPassword" required> </div>
                                     <div id="change-password-error" class="auth-error" style="display: none;"></div>
                                     <button type="submit" class="btn btn-primary">Update Password</button>
                                 </form>
@@ -143,11 +373,15 @@
                             <button type="button" class="btn btn-secondary close-account-modal-btn">Close</button>
                         </div>
                     </div>
-                </div> </div> </main>
-    </div> <footer>
+                </div>
+            </div>
+        </main>
+    </div>
+    <footer>
         <p>&copy; 2023 Golf Course Database Manager</p>
     </footer>
 
     <script src="script.js"></script>
 </body>
+
 </html>

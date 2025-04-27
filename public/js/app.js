@@ -13,14 +13,10 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM fully loaded and parsed');
 
     // --- Initial Setup ---
-    // Check token - TODO: Add proper token validation later
     const token = localStorage.getItem('token');
     if (token) {
-        console.log("Token found, attempting to determine view (validation needed)");
-        // Placeholder: Assume token is valid and try to show appropriate view
-        // Needs backend call to verify token and get user data
-        // fetch('/api/auth/validate', { headers: {'Authorization': `Bearer ${token}`} }) ...
-        // For now, just default to auth view if refresh happens
+        console.log("Token found, validation needed (TODO)");
+        // Try validating token with backend? For now, default to auth view on refresh.
         views.showAuthView();
     } else {
         views.showAuthView();
@@ -45,16 +41,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Listener for STATIC User Management card
     document.getElementById('user-management-card')?.addEventListener('click', () => {
         if (auth.isAdmin()) {
-            views.showUserManagementView(); // Show the view first
-            data.loadAndRenderUsers();      // THEN load the data for the view
+            views.showUserManagementView(); // Show the view
+            data.loadAndRenderUsers();      // Load the data for the view
         } else {
             views.showNotification('Access Denied: Admin role required.', 'error');
         }
     });
 
-    // Table View Navigation
+    // Table View Navigation & Actions
     document.getElementById('back-to-dashboard-btn')?.addEventListener('click', handleBackToDashboard);
-    document.getElementById('add-record-btn')?.addEventListener('click', openAddRecordModal);
+    // ---> Listener for Add Record Button <---
+    document.getElementById('add-record-btn')?.addEventListener('click', data.openAddRecordModal);
 
     // Statistics View Navigation
     document.getElementById('back-to-dashboard-from-stats-btn')?.addEventListener('click', handleBackToDashboard);
@@ -75,6 +72,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Modals Setup
     setupModalListeners();
 
+    // ---> Listener for Add Record Modal Submit Button <---
+    document.getElementById('submit-record')?.addEventListener('click', data.handleAddRecordSubmit);
+
+
 }); // End DOMContentLoaded
 
 // --- Handler Functions ---
@@ -85,38 +86,20 @@ async function handleLogin(e) {
     const password = document.getElementById('login-password').value;
     const loginError = document.getElementById('login-error');
     loginError.style.display = 'none';
-
     try {
-        const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
+        const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Login failed');
-
-        handleLoginSuccess(result); // Handle successful login steps
-
-    } catch (error) {
-        console.error('Login error:', error);
-        loginError.textContent = error.message;
-        loginError.style.display = 'block';
-    }
+        handleLoginSuccess(result);
+    } catch (error) { console.error('Login error:', error); loginError.textContent = error.message; loginError.style.display = 'block'; }
 }
 
 function handleLoginSuccess(loginData) {
     localStorage.setItem('token', loginData.token);
     auth.setCurrentUser({ username: loginData.username, role: loginData.role });
-
-    // Navigate to appropriate view AND load its initial data
-    if (auth.isAdmin()) {
-        views.showDashboardView(); // Shows the dashboard view container
-        data.fetchTablesAndPopulateDashboard(); // Populates the dynamic part
-    } else if (auth.isEmployee()) {
-        views.showEmployeeView(); // Calls loadEmployeeData internally
-    } else {
-        views.showMemberView(); // Calls loadMemberData internally
-    }
+    if (auth.isAdmin()) { views.showDashboardView(); data.fetchTablesAndPopulateDashboard(); }
+    else if (auth.isEmployee()) { views.showEmployeeView(); } // Calls loadEmployeeData internally via views.js
+    else { views.showMemberView(); } // Calls loadMemberData internally via views.js
     views.updateHeader();
 }
 
@@ -124,12 +107,15 @@ function handleLoginSuccess(loginData) {
 function handleBackToDashboard() {
      if (auth.isAdmin()) {
         views.showDashboardView();
-        data.fetchTablesAndPopulateDashboard(); // Reload tables for admin consistency
+        // Re-fetch tables for admin dashboard when returning
+        data.fetchTablesAndPopulateDashboard();
     } else if (auth.isEmployee()) {
-         views.showEmployeeView(); // Go back to employee portal
-         // employee.loadEmployeeData(); // Optionally refresh if needed
+         // Go back to employee portal view
+         views.showEmployeeView();
+         // Optionally refresh employee data if needed
+         // employee.loadEmployeeData();
     } else {
-         // Members shouldn't see this button typically
+         // Members shouldn't normally see these buttons
          views.showMemberView();
     }
 }
@@ -145,22 +131,15 @@ function openAccountModal() {
     }
 }
 
-function openAddRecordModal() {
-     console.log("Add record for table:", window.currentTable);
-     views.showNotification("Add record functionality not yet implemented.", "warning");
-     // TODO: Fetch table structure for window.currentTable
-     // TODO: Dynamically build form in #add-record-form based on structure
-     // TODO: Show #add-record-modal
-}
-
+// Setup listeners for modal close buttons and specific forms like change password
 function setupModalListeners() {
-     // General close buttons (using class 'close')
+     // General close buttons (using class 'close' on the span/button)
      document.querySelectorAll('.modal .close').forEach(btn => {
          btn.addEventListener('click', () => {
              btn.closest('.modal').style.display = 'none';
          });
      });
-      // Specific cancel buttons by ID if needed
+     // Specific cancel button for add modal by ID
      document.getElementById('cancel-record')?.addEventListener('click', () => {
           document.getElementById('add-record-modal').style.display = 'none';
      });
@@ -168,9 +147,11 @@ function setupModalListeners() {
      // Change Password Form Submission
      document.getElementById('change-password-form')?.addEventListener('submit', handleChangePassword);
 
-     // Add listeners for other modal submissions here (profile edit, etc.)
+     // Add listeners for other specific modal form submissions here if needed
+     // e.g., document.getElementById('profile-edit-form')?.addEventListener('submit', handleProfileUpdate);
 }
 
+// Handles password change submission (Requires backend endpoint)
 async function handleChangePassword(e) {
     e.preventDefault();
     const currentPassword = document.getElementById('current-password').value;
@@ -178,32 +159,14 @@ async function handleChangePassword(e) {
     const confirmNewPassword = document.getElementById('confirm-new-password').value;
     const errorDiv = document.getElementById('change-password-error');
     errorDiv.style.display = 'none';
-
-    if (newPassword !== confirmNewPassword) {
-        errorDiv.textContent = "New passwords do not match.";
-        errorDiv.style.display = 'block'; return;
-    }
-    if (!currentPassword || !newPassword) {
-         errorDiv.textContent = "All password fields are required.";
-        errorDiv.style.display = 'block'; return;
-    }
-
+    if (newPassword !== confirmNewPassword) { errorDiv.textContent = "New passwords do not match."; errorDiv.style.display = 'block'; return; }
+    if (!currentPassword || !newPassword) { errorDiv.textContent = "All password fields are required."; errorDiv.style.display = 'block'; return; }
     try {
-        // !! IMPORTANT: Ensure you have a '/api/user/change-password' endpoint in server.js !!
-        const response = await auth.authenticatedFetch('/api/user/change-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ currentPassword, newPassword })
-        });
+        // !!! Ensure '/api/user/change-password' endpoint exists on backend !!!
+        const response = await auth.authenticatedFetch('/api/user/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword, newPassword }) });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Failed to update password');
-
         views.showNotification('Password updated successfully!', 'success');
         document.getElementById('account-modal').style.display = 'none';
-
-    } catch (error) {
-        console.error("Change password error:", error);
-        errorDiv.textContent = error.message;
-        errorDiv.style.display = 'block';
-    }
+    } catch (error) { console.error("Change password error:", error); errorDiv.textContent = error.message; errorDiv.style.display = 'block'; }
 }

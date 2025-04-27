@@ -149,15 +149,34 @@ CREATE TABLE TEE_TIME (
     Time TIME,
     Status VARCHAR(50),
     Booked_member_id INT,
-    FOREIGN KEY (Booked_member_id) REFERENCES MEMBER(Member_id)
+    Available_slots INT DEFAULT 4,
+    Course_id INT,
+    FOREIGN KEY (Booked_member_id) REFERENCES MEMBER(Member_id),
+    FOREIGN KEY (Course_id) REFERENCES GOLF_COURSE(Course_id)
 );
 
-INSERT INTO TEE_TIME (Date, Time, Status, Booked_member_id) VALUES
-('2023-11-20', '08:00:00', 'Booked', 1),
-('2023-11-20', '09:00:00', 'Booked', 2),
-('2023-11-21', '10:00:00', 'Booked', 3),
-('2023-11-21', '11:00:00', 'Available', NULL),
-('2023-11-22', '12:00:00', 'Booked', 4);
+INSERT INTO TEE_TIME (Date, Time, Status, Booked_member_id, Available_slots, Course_id) VALUES
+('2023-11-20', '08:00:00', 'Booked', 1, 3, 1),
+('2023-11-20', '09:00:00', 'Booked', 2, 3, 1),
+('2023-11-21', '10:00:00', 'Booked', 3, 3, 1),
+('2023-11-21', '11:00:00', 'Available', NULL, 4, 1),
+('2023-11-22', '12:00:00', 'Booked', 4, 3, 1);
+
+-- MEMBER_TEE_TIME Table (many-to-many relationship between MEMBER and TEE_TIME)
+CREATE TABLE MEMBER_TEE_TIME (
+    Member_id INT,
+    Tee_time_id INT,
+    PRIMARY KEY (Member_id, Tee_time_id),
+    FOREIGN KEY (Member_id) REFERENCES MEMBER(Member_id),
+    FOREIGN KEY (Tee_time_id) REFERENCES TEE_TIME(Tee_time_id)
+);
+
+-- Initial data for MEMBER_TEE_TIME
+INSERT INTO MEMBER_TEE_TIME (Member_id, Tee_time_id) VALUES
+(1, 1),
+(2, 2),
+(3, 3),
+(4, 5);
 
 -- MANAGES Table
 CREATE TABLE MANAGES (

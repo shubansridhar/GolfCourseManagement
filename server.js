@@ -443,6 +443,25 @@ app.get('/api/member/tee-times', authenticateToken, async (req, res, next) => {
     }
 
     try {
+        // First, check if member exists
+        const [members] = await dbPool.query(`
+            SELECT m.Member_id
+            FROM MEMBER m
+            JOIN users u ON LOWER(CONCAT(m.Fname, '.', m.Lname)) = LOWER(u.username)
+            WHERE u.username = ?
+        `, [req.user.username]);
+
+        // If no member profile exists, return empty data
+        if (members.length === 0) {
+            return res.json({
+                upcoming: [],
+                history: [],
+                available: []
+            });
+        }
+
+        const memberId = members[0].Member_id;
+
         // Get upcoming tee times for the member
         const [upcomingTeeTimes] = await dbPool.query(`
             SELECT 
@@ -456,7 +475,7 @@ app.get('/api/member/tee-times', authenticateToken, async (req, res, next) => {
             WHERE mtt.Member_id = ? 
             AND tt.Date >= CURDATE()
             ORDER BY tt.Date, tt.Time
-        `, [req.user.userId]);
+        `, [memberId]);
 
         // Get tee time history for the member
         const [teeTimeHistory] = await dbPool.query(`
@@ -472,7 +491,7 @@ app.get('/api/member/tee-times', authenticateToken, async (req, res, next) => {
             AND tt.Date < CURDATE()
             ORDER BY tt.Date DESC, tt.Time DESC
             LIMIT 10
-        `, [req.user.userId]);
+        `, [memberId]);
 
         res.json({
             upcoming: upcomingTeeTimes,
@@ -537,6 +556,21 @@ app.post('/api/member/book-tee-time', authenticateToken, async (req, res, next) 
         // Start a transaction
         await dbPool.query('START TRANSACTION');
 
+        // Check if member exists
+        const [members] = await dbPool.query(`
+            SELECT m.Member_id
+            FROM MEMBER m
+            JOIN users u ON LOWER(CONCAT(m.Fname, '.', m.Lname)) = LOWER(u.username)
+            WHERE u.username = ?
+        `, [req.user.username]);
+
+        if (members.length === 0) {
+            await dbPool.query('ROLLBACK');
+            return res.status(400).json({ error: 'You need to complete your member profile before booking a tee time' });
+        }
+
+        const memberId = members[0].Member_id;
+
         // Check if tee time is available
         const [teeTime] = await dbPool.query(`
             SELECT Available_slots 
@@ -558,7 +592,7 @@ app.post('/api/member/book-tee-time', authenticateToken, async (req, res, next) 
         const [existingBooking] = await dbPool.query(`
             SELECT * FROM MEMBER_TEE_TIME 
             WHERE Member_id = ? AND Tee_time_id = ?
-        `, [req.user.userId, teeTimeId]);
+        `, [memberId, teeTimeId]);
 
         if (existingBooking.length > 0) {
             await dbPool.query('ROLLBACK');
@@ -569,7 +603,7 @@ app.post('/api/member/book-tee-time', authenticateToken, async (req, res, next) 
         await dbPool.query(`
             INSERT INTO MEMBER_TEE_TIME (Member_id, Tee_time_id) 
             VALUES (?, ?)
-        `, [req.user.userId, teeTimeId]);
+        `, [memberId, teeTimeId]);
 
         // Update available slots
         await dbPool.query(`
@@ -621,22 +655,37 @@ app.post('/api/member/cancel-tee-time', authenticateToken, async (req, res, next
         // Start a transaction
         await dbPool.query('START TRANSACTION');
 
-        // Check if member has booked this tee time
+        // Check if member exists
+        const [members] = await dbPool.query(`
+            SELECT m.Member_id
+            FROM MEMBER m
+            JOIN users u ON LOWER(CONCAT(m.Fname, '.', m.Lname)) = LOWER(u.username)
+            WHERE u.username = ?
+        `, [req.user.username]);
+
+        if (members.length === 0) {
+            await dbPool.query('ROLLBACK');
+            return res.status(400).json({ error: 'Member profile not found' });
+        }
+
+        const memberId = members[0].Member_id;
+
+        // Check if member has this tee time
         const [booking] = await dbPool.query(`
             SELECT * FROM MEMBER_TEE_TIME 
             WHERE Member_id = ? AND Tee_time_id = ?
-        `, [req.user.userId, teeTimeId]);
+        `, [memberId, teeTimeId]);
 
         if (booking.length === 0) {
             await dbPool.query('ROLLBACK');
             return res.status(404).json({ error: 'Booking not found' });
         }
 
-        // Delete the booking
+        // Cancel the booking
         await dbPool.query(`
             DELETE FROM MEMBER_TEE_TIME 
             WHERE Member_id = ? AND Tee_time_id = ?
-        `, [req.user.userId, teeTimeId]);
+        `, [memberId, teeTimeId]);
 
         // Update available slots
         await dbPool.query(`
@@ -648,9 +697,7 @@ app.post('/api/member/cancel-tee-time', authenticateToken, async (req, res, next
         // Commit the transaction
         await dbPool.query('COMMIT');
 
-        res.json({
-            message: 'Tee time cancelled successfully'
-        });
+        res.json({ message: 'Tee time cancelled successfully' });
     } catch (error) {
         // Rollback on error
         await dbPool.query('ROLLBACK');
@@ -675,8 +722,12 @@ app.get('/api/member/equipment', authenticateToken, async (req, res, next) => {
             WHERE u.username = ?
         `, [req.user.username]);
 
+        // If no member profile exists, return empty data instead of 404 error
         if (members.length === 0) {
-            return res.status(404).json({ error: 'Member profile not found' });
+            return res.json({
+                available: [],
+                rentals: []
+            });
         }
 
         const memberId = members[0].Member_id;
@@ -706,7 +757,7 @@ app.get('/api/member/equipment', authenticateToken, async (req, res, next) => {
             JOIN EQUIPMENT_TYPE et ON e.Type = et.Type
             WHERE er.Member_id = ?
             ORDER BY er.Rental_date DESC
-        `, [req.user.userId]);
+        `, [memberId]);
 
         res.json({
             available: availableEquipment,
@@ -726,13 +777,26 @@ app.post('/api/member/rent-equipment', authenticateToken, async (req, res, next)
     }
 
     const { items } = req.body;
-    const memberId = req.user.userId; // Use the authenticated user's ID
 
-    if (!memberId || !items || !Array.isArray(items) || items.length === 0) {
+    if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: 'Invalid rental data. At least one item is required.' });
     }
 
     try {
+        // Check if member exists
+        const [members] = await dbPool.query(`
+            SELECT m.Member_id
+            FROM MEMBER m
+            JOIN users u ON LOWER(CONCAT(m.Fname, '.', m.Lname)) = LOWER(u.username)
+            WHERE u.username = ?
+        `, [req.user.username]);
+
+        if (members.length === 0) {
+            return res.status(400).json({ error: 'You need to complete your member profile before renting equipment' });
+        }
+
+        const memberId = members[0].Member_id;
+
         // Start a transaction
         await dbPool.query('START TRANSACTION');
 

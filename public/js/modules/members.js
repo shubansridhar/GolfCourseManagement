@@ -23,15 +23,77 @@ let memberEquipment = null;
 let selectedEquipment = [];
 
 /**
+ * Check if all essential member view elements exist
+ * This is a debug function to help identify missing elements
+ */
+function checkMemberViewElements() {
+    console.log('*** CHECKING MEMBER VIEW DOM ELEMENTS ***');
+
+    // Check main containers
+    const memberView = document.getElementById('member-view');
+    console.log('member-view exists:', !!memberView);
+
+    const memberContainer = document.querySelector('.member-container');
+    console.log('.member-container exists:', !!memberContainer);
+
+    if (memberContainer) {
+        const memberDashboardGrid = memberContainer.querySelector('.member-dashboard-grid');
+        console.log('.member-dashboard-grid exists:', !!memberDashboardGrid);
+
+        const loading = memberContainer.querySelector('.loading');
+        console.log('.loading exists:', !!loading);
+    } else {
+        console.error('Cannot check child elements: .member-container not found');
+    }
+
+    // Check card elements
+    const memberProfileContent = document.getElementById('member-profile-content');
+    console.log('member-profile-content exists:', !!memberProfileContent);
+
+    const membershipContent = document.querySelector('.membership-content');
+    console.log('.membership-content exists:', !!membershipContent);
+
+    const teeTimesTabContent = document.querySelector('.tee-times-tab-content');
+    console.log('.tee-times-tab-content exists:', !!teeTimesTabContent);
+
+    const equipmentTabContent = document.querySelector('.equipment-tab-content');
+    console.log('.equipment-tab-content exists:', !!equipmentTabContent);
+
+    // Check button elements
+    const editProfileBtn = document.getElementById('edit-profile-btn');
+    console.log('edit-profile-btn exists:', !!editProfileBtn);
+
+    const updatePlanBtn = document.getElementById('update-plan-btn');
+    console.log('update-plan-btn exists:', !!updatePlanBtn);
+
+    const bookTeeTimeBtn = document.getElementById('book-tee-time-btn');
+    console.log('book-tee-time-btn exists:', !!bookTeeTimeBtn);
+
+    const rentEquipmentBtn = document.getElementById('rent-equipment-btn');
+    console.log('rent-equipment-btn exists:', !!rentEquipmentBtn);
+
+    console.log('*** END OF DOM ELEMENT CHECK ***');
+}
+
+/**
  * Show the member view
  */
 function showMemberView() {
+    console.log('showMemberView called');
+
     // Hide all content
     hideAllContent();
 
     // Show member view
     const memberView = document.getElementById('member-view');
-    if (memberView) memberView.style.display = 'block';
+    console.log('Member view element:', memberView);
+
+    if (memberView) {
+        memberView.style.display = 'block';
+        console.log('Set member view display to block');
+    } else {
+        console.error('Member view element not found!');
+    }
 
     // Hide back to dashboard button for member users
     if (window.currentUser && window.currentUser.role === 'member') {
@@ -41,6 +103,9 @@ function showMemberView() {
         }
     }
 
+    // Check if all elements are in the DOM
+    checkMemberViewElements();
+
     // Refresh member data
     refreshMemberData();
 }
@@ -49,17 +114,28 @@ function showMemberView() {
  * Refresh all member data
  */
 function refreshMemberData() {
+    console.log('refreshMemberData called');
+
     // Show loading
     const memberContainer = document.querySelector('.member-container');
-    if (!memberContainer) return;
+    console.log('Member container element:', memberContainer);
+
+    if (!memberContainer) {
+        console.error('Member container not found!');
+        return;
+    }
 
     const memberDashboard = memberContainer.querySelector('.member-dashboard-grid');
     const loading = memberContainer.querySelector('.loading');
+
+    console.log('Member dashboard grid:', memberDashboard);
+    console.log('Loading element:', loading);
 
     if (memberDashboard) memberDashboard.style.display = 'none';
     if (loading) loading.style.display = 'block';
 
     // Fetch member profile, membership plans, tee times, and equipment data
+    console.log('Starting data fetching...');
     Promise.all([
         fetchMemberProfile(),
         fetchMembershipPlans(),
@@ -67,15 +143,25 @@ function refreshMemberData() {
         fetchEquipmentData()
     ])
         .then(() => {
+            console.log('All data fetched successfully!');
+            console.log('Member profile:', memberProfile);
+            console.log('Member plans:', memberPlans);
+            console.log('Member tee times:', memberTeeTimes);
+            console.log('Available equipment:', availableEquipment);
+            console.log('Member equipment:', memberEquipment);
+
             // Render member view components
+            console.log('Rendering member view components...');
             renderMemberProfile();
             renderMembershipPlan();
             renderTeeTimes();
             renderEquipmentSection();
 
             // Hide loading and show dashboard
+            console.log('Showing dashboard and hiding loading...');
             if (loading) loading.style.display = 'none';
             if (memberDashboard) memberDashboard.style.display = 'grid';
+            console.log('Member dashboard display set to grid');
         })
         .catch(error => {
             console.error('Error refreshing member data:', error);
@@ -185,9 +271,21 @@ async function fetchEquipmentData() {
  * Render member profile card
  */
 function renderMemberProfile() {
+    console.log('renderMemberProfile called');
     const memberProfileContent = document.getElementById('member-profile-content');
+    console.log('Member profile content element:', memberProfileContent);
 
-    if (!memberProfileContent || !memberProfile) return;
+    if (!memberProfileContent) {
+        console.error('Member profile content element not found!');
+        return;
+    }
+
+    if (!memberProfile) {
+        console.error('Member profile data is null or undefined!');
+        return;
+    }
+
+    console.log('Rendering profile with data:', memberProfile);
 
     // Format first letter of first and last name as uppercase for the profile picture
     const initials = `${memberProfile.Fname ? memberProfile.Fname.charAt(0).toUpperCase() : ''}${memberProfile.Lname ? memberProfile.Lname.charAt(0).toUpperCase() : ''}`;
@@ -204,21 +302,38 @@ function renderMemberProfile() {
             </div>
         </div>
     `;
+
+    console.log('Member profile rendered successfully');
 }
 
 /**
  * Render membership plan card
  */
 function renderMembershipPlan() {
+    console.log('renderMembershipPlan called');
     const membershipContent = document.getElementById('membership-content');
+    console.log('Membership content element:', membershipContent);
 
-    if (!membershipContent || !memberProfile) return;
+    if (!membershipContent) {
+        console.error('Membership content element not found!');
+        return;
+    }
+
+    if (!memberProfile) {
+        console.error('Member profile data is null or undefined!');
+        return;
+    }
+
+    console.log('Rendering membership plan with profile:', memberProfile);
+    console.log('Available plans:', memberPlans);
 
     // Find the current plan from the memberPlans array
     let currentPlan = null;
     if (memberPlans && memberPlans.length > 0 && memberProfile.Member_plan_id) {
         currentPlan = memberPlans.find(plan => plan.Plan_id === memberProfile.Member_plan_id);
     }
+
+    console.log('Current plan:', currentPlan);
 
     if (currentPlan) {
         membershipContent.innerHTML = `
@@ -253,6 +368,8 @@ function renderMembershipPlan() {
             selectPlanBtn.addEventListener('click', openPlanChangeModal);
         }
     }
+
+    console.log('Membership plan rendered successfully');
 }
 
 /**

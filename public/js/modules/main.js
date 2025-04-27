@@ -42,20 +42,35 @@ async function initializeApp() {
 
     // Find DOM elements
     findDomElements();
+    console.log('DOM elements found:', {
+        authView, appView, memberView, statisticsView,
+        dashboardView, tableView
+    });
 
     // Set up event listeners
     setupEventListeners();
 
     // Check for saved authentication
     const isAuthenticated = await Auth.initializeAuth();
+    console.log('Authentication check result:', { isAuthenticated });
+    console.log('Current user:', Auth.currentUser);
 
     // Show appropriate view based on authentication
     if (isAuthenticated) {
         console.log('User is authenticated, showing app view');
-        if (Auth.currentUser.role === 'member') {
+        if (Auth.currentUser && Auth.currentUser.role === 'member') {
+            console.log('User is a member, showing member view');
             Views.hideAllContent();
-            Members.showMemberView();
+
+            // Check if member view element exists before trying to show it
+            if (memberView) {
+                console.log('Member view element exists, calling Members.showMemberView()');
+                Members.showMemberView();
+            } else {
+                console.error('Member view element is null or undefined!');
+            }
         } else {
+            console.log('User is not a member, showing regular app view');
             Views.showAppView();
             Data.fetchTablesAndPopulateDashboard();
         }

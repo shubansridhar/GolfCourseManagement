@@ -1,6 +1,6 @@
 // DBPROJ/server.js
 
-require('dotenv').config(); // Load .env variables first
+require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
@@ -11,16 +11,16 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// === Core Middleware ===
-app.use(cors()); // Allow cross-origin requests
-app.use(express.json()); // Parse JSON request bodies
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
-app.use(express.static(path.join(__dirname, 'public'))); // Serve static files from 'public'
+// Core Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
 
-// === Database Connection Pool ===
+// DB Pool
 const dbPool = mysql.createPool({
-    host: process.env.DB_HOST,
-    port: 3306,
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 3306,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
@@ -28,99 +28,77 @@ const dbPool = mysql.createPool({
     connectionLimit: 10,
     queueLimit: 0,
     connectTimeout: 10000
-}).promise(); // Use the promise wrapper
+}).promise();
 
-// Check initial connection
 dbPool.getConnection()
-    .then(connection => {
-        console.log('Successfully connected to the database pool.');
-        connection.release();
-    })
-    .catch(err => {
-        console.error('!!! DATABASE POOL CONNECTION FAILED !!! Error:', err.message);
-    });
+    .then(connection => { console.log('Successfully connected to the database pool.'); connection.release(); })
+    .catch(err => { console.error('!!! DATABASE POOL CONNECTION FAILED !!! Error:', err.message); });
 
-// === Custom Middleware Definitions ===
-
-// Middleware to check DB connection before API requests
+// Custom Middleware Definitions
 const checkDbConnection = async (req, res, next) => {
     try {
         const connection = await dbPool.getConnection();
         connection.release();
-        next(); // Proceed if connection is acquired successfully
+        next();
     } catch (dbError) {
-        // Only block API requests if DB is down
         if (req.path.startsWith('/api/')) {
             console.error("DB Pool check failed for API route:", dbError.message);
-            return res.status(503).json({ // Send 503 Service Unavailable
-                error: 'Database connection is not available',
-                message: 'Please ensure the database server is running and accessible.'
-            });
+            return res.status(503).json({ error: 'Database connection is not available', message: 'Please ensure the database server is running and accessible.' });
         } else {
-            next(); // Allow non-API requests (like serving HTML)
+            next();
         }
     }
 };
-
-// Middleware to authenticate JWT token
 const authenticateToken = (req, res, next) => {
-    console.log("authenticateToken middleware triggered for:", req.path);
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Format: "Bearer TOKEN"
-
-    if (token == null) {
-        console.log("Auth Middleware: No token provided.");
-        return res.status(401).json({ error: 'Authentication required: No token provided.' }); // Unauthorized
-    }
-
+    const token = authHeader && authHeader.split(' ')[1];
+    if (token == null) return res.status(401).json({ error: 'Authentication required: No token provided.' });
     jwt.verify(token, process.env.JWT_SECRET, (err, userPayload) => {
         if (err) {
-            console.warn("Auth Middleware: Token verification failed:", err.name);
-            return res.status(403).json({ error: 'Token is not valid or has expired.' }); // Forbidden
+            console.warn("Token verification failed:", err.name);
+            return res.status(403).json({ error: 'Token is not valid or has expired.' });
         }
-        // Token is valid, attach payload to request object
-        req.user = userPayload; // Contains { userId, username, role }
-        console.log("Auth Middleware: Token verified. User:", req.user);
-        next(); // Proceed to the next middleware or route handler
+        req.user = userPayload; // Attach { userId, username, role }
+        next();
     });
 };
 
-// === Apply Custom Middleware ===
-app.use('/api', checkDbConnection);
-// Auth Check applies ONLY to /api/tables/* AND the new /api/admin/* routes
-app.use('/api/tables', authenticateToken);
-app.use('/api/admin', authenticateToken); // <-- Protect admin routes too
 
-
-// === Apply Custom Middleware ===
-// Apply DB Check to ALL routes starting with /api
-app.use('/api', checkDbConnection);
-// Apply Auth Check ONLY to routes starting with /api/tables
-app.use('/api/tables', authenticateToken);
+// Apply Custom Middleware
+app.use('/api', checkDbConnection); // Check DB for all /api routes
+// Apply Auth Check selectively
+app.use('/api/tables', authenticateToken); // Protect generic table access
+app.use('/api/admin', authenticateToken); // Protect admin routes
+app.use('/api/statistics', authenticateToken); // Protect stats
+app.use('/api/member', authenticateToken); // Protect member routes
+// NOTE: /api/auth routes are NOT protected by authenticateToken
 
 
 // === API Route Definitions ===
 
-// --- Authentication Routes (No authenticateToken middleware applied) ---
+// --- Authentication Routes ---
 const saltRounds = 10;
 
-// POST /api/auth/signup
+// POST /api/auth/signup (General signup - ONLY Employee/Member)
 app.post('/api/auth/signup', async (req, res, next) => {
     const { username, password, role } = req.body;
-    console.log("Signup attempt:", { username, role });
     if (!username || !password || !role) return res.status(400).json({ error: 'Username, password, and role required.' });
-    const allowedRoles = ['admin', 'employee', 'member'];
-    if (!allowedRoles.includes(role)) return res.status(400).json({ error: 'Invalid role specified.' });
+
+    // *** Only allow non-admin roles through this general signup ***
+    const allowedRoles = ['employee', 'member'];
+    if (!allowedRoles.includes(role)) return res.status(400).json({ error: 'Invalid role specified for general signup. Admins must be added by existing admins.' });
+
+    // *** Password length check ***
+    if (password.length < 4) {
+         return res.status(400).json({ error: 'Password must be at least 4 characters long.' });
+    }
+
     try {
-        if (role === 'admin') {
-            const [adminRows] = await dbPool.query('SELECT COUNT(*) as adminCount FROM users WHERE role = ?', ['admin']);
-            if (adminRows[0].adminCount > 0) return res.status(403).json({ error: 'Admin user already exists.' });
-        }
         const [userRows] = await dbPool.query('SELECT user_id FROM users WHERE username = ?', [username]);
         if (userRows.length > 0) return res.status(409).json({ error: 'Username already taken.' });
+
         const hashedPassword = await bcrypt.hash(password, saltRounds);
         const [insertResult] = await dbPool.query('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', [username, hashedPassword, role]);
-        console.log(`User ${username} (${role}) created successfully with ID: ${insertResult.insertId}`);
         res.status(201).json({ message: `User '${username}' created successfully as ${role}!` });
     } catch (error) { next(error); }
 });
@@ -128,7 +106,6 @@ app.post('/api/auth/signup', async (req, res, next) => {
 // POST /api/auth/login
 app.post('/api/auth/login', async (req, res, next) => {
     const { username, password } = req.body;
-    console.log("Login attempt:", { username });
     if (!username || !password) return res.status(400).json({ error: 'Username and password required.' });
     try {
         const [userRows] = await dbPool.query('SELECT user_id, username, password_hash, role FROM users WHERE username = ?', [username]);
@@ -140,172 +117,77 @@ app.post('/api/auth/login', async (req, res, next) => {
         const secret = process.env.JWT_SECRET;
         if (!secret) { console.error("FATAL: JWT_SECRET not set!"); return res.status(500).json({ error: "Server configuration error." }); }
         const token = jwt.sign(payload, secret, { expiresIn: '1h' });
-        console.log(`Token generated for ${user.username}`);
         res.status(200).json({ message: 'Login successful!', token: token, username: user.username, role: user.role });
     } catch (error) { next(error); }
 });
 
-// GET /api/admin/users - Fetch all users (Admin Only)
+// --- Admin Routes (Protected by authenticateToken)---
+// GET /api/admin/users (List users)
 app.get('/api/admin/users', async (req, res, next) => {
-    console.log(`Admin route /api/admin/users accessed by: ${req.user?.username} (Role: ${req.user?.role})`);
-
-    // 1. Check if user is Admin (user info is attached by authenticateToken middleware)
-    if (!req.user || req.user.role !== 'admin') {
-        console.warn("Forbidden: Non-admin user attempted to access user list.");
-        return res.status(403).json({ error: 'Access Forbidden: Admin role required.' });
-    }
-
-    // 2. Fetch users from DB (excluding password hash)
+    if (!req.user || req.user.role !== 'admin') { return res.status(403).json({ error: 'Access Forbidden: Admin role required.' }); }
     try {
         const query = 'SELECT user_id, username, role, created_at FROM users ORDER BY user_id';
         const [users] = await dbPool.query(query);
-        res.json(users); // Send the list of users
-    } catch (error) {
-        console.error("Error fetching users for admin:", error);
-        next(error); // Pass error to global handler
-    }
+        res.json(users);
+    } catch (error) { next(error); }
 });
 
-// --- Table Data Routes (checkDbConnection AND authenticateToken middleware applied) ---
+// POST /api/admin/users (Create Admin by Admin)
+app.post('/api/admin/users', async (req, res, next) => {
+    if (!req.user || req.user.role !== 'admin') { return res.status(403).json({ error: 'Forbidden: Only admins can create new admin users.' }); }
 
-// GET /api/tables - List tables
+    const { username, password } = req.body;
+    const roleToCreate = 'admin';
+
+    if (!username || !password) { return res.status(400).json({ error: 'New username and password are required.' }); }
+    // *** Update password length check ***
+    if (password.length < 4) {
+         return res.status(400).json({ error: 'Password must be at least 4 characters long.' });
+    }
+
+    try {
+        const [existingUser] = await dbPool.query('SELECT user_id FROM users WHERE username = ?', [username]);
+        if (existingUser.length > 0) { return res.status(409).json({ error: 'Username already taken.' }); }
+
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        const [insertResult] = await dbPool.query('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', [username, hashedPassword, roleToCreate]);
+
+        console.log(`Admin ${req.user.username} created new admin user ${username} with ID: ${insertResult.insertId}`);
+        res.status(201).json({ message: `Admin user '${username}' created successfully!` });
+
+    } catch (error) { next(error); }
+});
+
+// --- Table Data Routes ---
+// GET /api/tables
 app.get('/api/tables', async (req, res, next) => {
-    // Now you can access req.user here if needed for RBAC later
-    console.log(`User requesting table list: ${req.user?.username} (Role: ${req.user?.role})`);
-    try {
-        const [results] = await dbPool.query("SHOW TABLES");
-        // Filter out the 'users' table maybe? Or handle based on role later.
-        const tables = results.map(row => Object.values(row)[0]).filter(name => name !== 'users');
-        res.json(tables);
-    } catch (err) { next(err); }
+    try { const [results] = await dbPool.query("SHOW TABLES"); const tables = results.map(r => Object.values(r)[0]).filter(n => n !== 'users'); res.json(tables); } catch (err) { next(err); }
 });
-
-// GET /api/tables/:tableName/structure - Get structure
+// GET /api/tables/:tableName/structure
 app.get('/api/tables/:tableName/structure', async (req, res, next) => {
-    const tableName = req.params.tableName;
-    console.log(`User ${req.user?.username} requesting structure for ${tableName}`);
-    if (!tableName.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid table name format.' });
-    if (tableName.toLowerCase() === 'users') return res.status(403).json({ error: 'Access denied.' }); // Prevent accessing users table structure easily
-    const query = `DESCRIBE \`${tableName}\``;
-    try {
-        const [results] = await dbPool.query(query);
-        res.json(results);
-    } catch (err) { if (err.code === 'ER_NO_SUCH_TABLE') return res.status(404).json({ error: `Table '${tableName}' not found.` }); next(err); }
+    const tN = req.params.tableName; if (!tN.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid name.' }); if (tN.toLowerCase() === 'users') return res.status(403).json({ error: 'Denied.' }); const q = `DESCRIBE \`${tN}\``; try { const [r] = await dbPool.query(q); res.json(r); } catch (err) { if (err.code === 'ER_NO_SUCH_TABLE') return res.status(404).json({ error: `Table '${tN}' not found.` }); next(err); }
 });
-
-// GET /api/tables/:tableName - Get data
+// GET /api/tables/:tableName
 app.get('/api/tables/:tableName', async (req, res, next) => {
-    const tableName = req.params.tableName;
-    console.log(`User ${req.user?.username} requesting data for ${tableName}`);
-    if (!tableName.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid table name format.' });
-    if (tableName.toLowerCase() === 'users') return res.status(403).json({ error: 'Access denied.' }); // Prevent accessing users table data easily
-    const query = `SELECT * FROM \`${tableName}\``; // TODO: Add LIMIT/OFFSET for pagination later
-    try {
-        const [results] = await dbPool.query(query);
-        res.json(results);
-    } catch (err) { if (err.code === 'ER_NO_SUCH_TABLE') return res.status(404).json({ error: `Table '${tableName}' not found.` }); next(err); }
+    const tN = req.params.tableName; if (!tN.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid name.' }); if (tN.toLowerCase() === 'users') return res.status(403).json({ error: 'Denied.' }); const q = `SELECT * FROM \`${tN}\``; try { const [r] = await dbPool.query(q); res.json(r); } catch (err) { if (err.code === 'ER_NO_SUCH_TABLE') return res.status(404).json({ error: `Table '${tN}' not found.` }); next(err); }
 });
 
-// POST /api/tables/:tableName - Insert data
+// POST /api/tables/:tableName (Add record - WITH ROLE CHECK)
 app.post('/api/tables/:tableName', async (req, res, next) => {
-    const tableName = req.params.tableName;
-    console.log(`User ${req.user?.username} attempting to insert into ${tableName}`);
-    if (!tableName.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid table name format.' });
-    if (tableName.toLowerCase() === 'users') return res.status(403).json({ error: 'Access denied.' }); // Prevent direct modification
-    const data = req.body;
-    const cleanData = {};
-    Object.keys(data).forEach(key => { if (data[key] !== '' && data[key] !== null && data[key] !== undefined) cleanData[key] = data[key]; });
-    if (Object.keys(cleanData).length === 0) return res.status(400).json({ error: 'No valid data provided for insertion' });
-    const query = `INSERT INTO \`${tableName}\` SET ?`;
-    try {
-        // TODO: Add role check here - is req.user.role allowed to INSERT into this tableName?
-        const [results] = await dbPool.query(query, cleanData);
-        res.status(201).json({ message: `Data inserted successfully into ${tableName}`, insertId: results.insertId });
-    } catch (err) { next(err); }
+    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) { return res.status(403).json({ error: 'Forbidden: Insufficient permissions to add records.' }); } // <-- ROLE CHECK
+    const tN = req.params.tableName; if (!tN.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid name.' }); if (tN.toLowerCase() === 'users') return res.status(403).json({ error: 'Denied.' }); const d = req.body; const cD = {}; Object.keys(d).forEach(k => { if (d[k] !== '') cD[k] = d[k]; }); if (Object.keys(cD).length === 0) return res.status(400).json({ error: 'No data.' }); const q = `INSERT INTO \`${tN}\` SET ?`; try { const [r] = await dbPool.query(q, cD); res.status(201).json({ message: 'Inserted', insertId: r.insertId }); } catch (err) { next(err); }
 });
 
-// DELETE /api/tables/:tableName/:id - Delete data
+// DELETE /api/tables/:tableName/:id (Delete record - WITH ROLE CHECK)
 app.delete('/api/tables/:tableName/:id', async (req, res, next) => {
-    const tableName = req.params.tableName;
-    const id = req.params.id;
-    console.log(`User ${req.user?.username} attempting to delete from ${tableName} where ID=${id}`);
-    if (!tableName.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid table name format.' });
-    if (tableName.toLowerCase() === 'users') return res.status(403).json({ error: 'Access denied.' }); // Prevent direct modification
-    const primaryKeyName = req.query.primaryKey;
-    if (!primaryKeyName || !primaryKeyName.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Valid primaryKey query parameter required.' });
-    const query = `DELETE FROM \`${tableName}\` WHERE \`${primaryKeyName}\` = ?`;
-    try {
-        // TODO: Add role check here - is req.user.role allowed to DELETE from this tableName?
-        const [results] = await dbPool.query(query, [id]);
-        if (results.affectedRows === 0) return res.status(404).json({ error: `Record with ${primaryKeyName} = ${id} not found in ${tableName}` });
-        res.json({ message: `Data deleted successfully from ${tableName}`, affectedRows: results.affectedRows });
-    } catch (err) { next(err); }
+    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) { return res.status(403).json({ error: 'Forbidden: Insufficient permissions to delete records.' }); } // <-- ROLE CHECK
+    const tN = req.params.tableName; const id = req.params.id; const pK = req.query.primaryKey; if (!tN.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid name.' }); if (tN.toLowerCase() === 'users') return res.status(403).json({ error: 'Denied.' }); if (!pK || !pK.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'PK required.' }); if (!id) return res.status(400).json({ error: 'ID required.' }); const q = `DELETE FROM \`${tN}\` WHERE \`${pK}\` = ?`; try { const [r] = await dbPool.query(q, [id]); if (r.affectedRows === 0) return res.status(404).json({ error: `Record ${id} not found.` }); res.json({ message: 'Deleted', affectedRows: r.affectedRows }); } catch (err) { if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_ROW_IS_REFERENCED') { return res.status(409).json({ error: 'Cannot delete: Record referenced.' }); } next(err); }
 });
 
-// New route for statistics (protected by authenticateToken)
-app.get('/api/statistics', authenticateToken, async (req, res, next) => {
-    console.log(`Statistics endpoint accessed by: ${req.user?.username} (Role: ${req.user?.role})`);
-
-    // Only allow admin and employee roles to access statistics
-    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) {
-        console.warn("Forbidden: User without admin/employee role attempted to access statistics.");
-        return res.status(403).json({ error: 'Access Forbidden: Admin or Employee role required.' });
-    }
-
-    try {
-        // Get the counts of records for each table
-        const tableCounts = {};
-        const [tables] = await dbPool.query("SHOW TABLES");
-        const tableNames = tables.map(row => Object.values(row)[0]).filter(name => name !== 'users');
-
-        // Execute queries for each table in parallel
-        const countPromises = tableNames.map(async (tableName) => {
-            const [countResult] = await dbPool.query(`SELECT COUNT(*) as count FROM \`${tableName}\``);
-            return { tableName, count: countResult[0].count };
-        });
-
-        const counts = await Promise.all(countPromises);
-        counts.forEach(({ tableName, count }) => {
-            tableCounts[tableName] = count;
-        });
-
-        // Get additional statistics
-        // 1. Get member count by plan type
-        const [membersByPlan] = await dbPool.query(`
-            SELECT MEMBERSHIP_PLAN.Plan_type, COUNT(MEMBER.Member_id) as count 
-            FROM MEMBER 
-            JOIN MEMBERSHIP_PLAN ON MEMBER.Member_plan_id = MEMBERSHIP_PLAN.Plan_id 
-            GROUP BY MEMBERSHIP_PLAN.Plan_type
-        `);
-
-        // 2. Get booked vs available tee times
-        const [teeTimeStatus] = await dbPool.query(`
-            SELECT Status, COUNT(*) as count 
-            FROM TEE_TIME 
-            GROUP BY Status
-        `);
-
-        // 3. Get equipment availability summary
-        const [equipmentAvailability] = await dbPool.query(`
-            SELECT EQUIPMENT_TYPE.Type, 
-                   SUM(CASE WHEN EQUIPMENT.Availability = TRUE THEN 1 ELSE 0 END) as available,
-                   COUNT(EQUIPMENT.Equipment_id) as total
-            FROM EQUIPMENT
-            JOIN EQUIPMENT_TYPE ON EQUIPMENT.Type = EQUIPMENT_TYPE.Type
-            GROUP BY EQUIPMENT_TYPE.Type
-        `);
-
-        // Return all statistics
-        res.json({
-            tableCounts,
-            membersByPlan,
-            teeTimeStatus,
-            equipmentAvailability
-        });
-    } catch (error) {
-        console.error("Error generating statistics:", error);
-        next(error);
-    }
+// --- Statistics Route ---
+app.get('/api/statistics', async (req, res, next) => {
+    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) { return res.status(403).json({ error: 'Forbidden: Admin/Employee only.' }); }
+    try { const [tabs] = await dbPool.query("SHOW TABLES"); const tNs = tabs.map(r=>Object.values(r)[0]).filter(n=>n!=='users'); const counts = await Promise.all(tNs.map(async t=>{const [c]=await dbPool.query(`SELECT COUNT(*) as count FROM \`${t}\``);return {tN:t,c:c[0].count};})); const tC={}; counts.forEach(({tN,c})=>tC[tN]=c); const [mBP] = await dbPool.query(`SELECT mp.Plan_type, COUNT(m.Member_id) as count FROM MEMBER m JOIN MEMBERSHIP_PLAN mp ON m.Member_plan_id = mp.Plan_id GROUP BY mp.Plan_type`); const [tTS] = await dbPool.query(`SELECT Status, COUNT(*) as count FROM TEE_TIME GROUP BY Status`); const [eA] = await dbPool.query(`SELECT et.Type, SUM(CASE WHEN e.Availability = TRUE THEN 1 ELSE 0 END) as available, COUNT(e.Equipment_id) as total FROM EQUIPMENT e JOIN EQUIPMENT_TYPE et ON e.Type = et.Type GROUP BY et.Type`); res.json({ tableCounts:tC, membersByPlan:mBP, teeTimeStatus:tTS, equipmentAvailability:eA }); } catch (error) { console.error("Stats Err:", error); next(error); }
 });
 
 // === Member API Routes ===

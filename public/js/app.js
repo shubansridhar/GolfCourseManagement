@@ -13,10 +13,13 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM fully loaded and parsed');
 
     // --- Initial Setup ---
+    // Check token - TODO: Add proper token validation later via a backend call
     const token = localStorage.getItem('token');
     if (token) {
-        console.log("Token found, validation needed (TODO)");
-        // Try validating token with backend? For now, default to auth view on refresh.
+        console.log("Token found, attempting initial view (validation needed)");
+        // Ideally, validate token with backend here and call handleLoginSuccess if valid
+        // fetch('/api/auth/validate-token', { headers: {'Authorization': `Bearer ${token}`} })...
+        // For now, default to auth view if validation isn't implemented
         views.showAuthView();
     } else {
         views.showAuthView();
@@ -35,10 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('statistics-btn')?.addEventListener('click', views.showStatisticsView);
     document.getElementById('account-btn')?.addEventListener('click', openAccountModal);
 
-    // --- Dashboard Navigation ---
-    // Listener for dynamically loaded table cards is added in data.js/populateDashboard
-
-    // Listener for STATIC User Management card
+    // Dashboard Navigation (User Management Card)
     document.getElementById('user-management-card')?.addEventListener('click', () => {
         if (auth.isAdmin()) {
             views.showUserManagementView(); // Show the view
@@ -47,19 +47,20 @@ document.addEventListener('DOMContentLoaded', () => {
             views.showNotification('Access Denied: Admin role required.', 'error');
         }
     });
+    // NOTE: Dynamic dashboard card listeners are added in data.js
 
     // Table View Navigation & Actions
     document.getElementById('back-to-dashboard-btn')?.addEventListener('click', handleBackToDashboard);
-    // ---> Listener for Add Record Button <---
-    document.getElementById('add-record-btn')?.addEventListener('click', data.openAddRecordModal);
+    document.getElementById('add-record-btn')?.addEventListener('click', data.openAddRecordModal); // Listener for Add Record button
 
     // Statistics View Navigation
     document.getElementById('back-to-dashboard-from-stats-btn')?.addEventListener('click', handleBackToDashboard);
     document.getElementById('refresh-stats-btn')?.addEventListener('click', statistics.loadStatisticsData);
 
-    // User Management View Navigation
+    // User Management View Navigation & Actions
     document.getElementById('back-to-dashboard-from-users-btn')?.addEventListener('click', handleBackToDashboard);
     document.getElementById('refresh-users-btn')?.addEventListener('click', data.loadAndRenderUsers);
+    document.getElementById('add-admin-btn')?.addEventListener('click', openAddAdminModal); // Listener for Add Admin button
 
     // Employee View Refresh
     document.getElementById('refresh-employee-data-btn')?.addEventListener('click', employee.loadEmployeeData);
@@ -72,8 +73,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Modals Setup
     setupModalListeners();
 
-    // ---> Listener for Add Record Modal Submit Button <---
+    // Listener for Add Record Modal Submit Button
     document.getElementById('submit-record')?.addEventListener('click', data.handleAddRecordSubmit);
+    // Listener for Add Admin Modal Submit Button
+    document.getElementById('submit-new-admin')?.addEventListener('click', data.handleAddAdminSubmit);
 
 
 }); // End DOMContentLoaded
@@ -96,18 +99,24 @@ async function handleLogin(e) {
 
 function handleLoginSuccess(loginData) {
     localStorage.setItem('token', loginData.token);
-    auth.setCurrentUser({ username: loginData.username, role: loginData.role });
-    if (auth.isAdmin()) { views.showDashboardView(); data.fetchTablesAndPopulateDashboard(); }
-    else if (auth.isEmployee()) { views.showEmployeeView(); } // Calls loadEmployeeData internally via views.js
-    else { views.showMemberView(); } // Calls loadMemberData internally via views.js
-    views.updateHeader();
+    auth.setCurrentUser({ username: loginData.username, role: loginData.role }); // Store user info locally
+    // Navigate to appropriate view AND load its initial data
+    if (auth.isAdmin()) {
+        views.showDashboardView();
+        data.fetchTablesAndPopulateDashboard(); // Load admin dashboard tables
+    } else if (auth.isEmployee()) {
+        views.showEmployeeView(); // Calls loadEmployeeData internally via views.js
+    } else {
+        views.showMemberView(); // Calls loadMemberData internally via views.js
+    }
+    views.updateHeader(); // Update header display immediately
 }
 
 // Handler for "Back to Dashboard" buttons
 function handleBackToDashboard() {
      if (auth.isAdmin()) {
         views.showDashboardView();
-        // Re-fetch tables for admin dashboard when returning
+        // Re-fetch tables for admin dashboard for consistency
         data.fetchTablesAndPopulateDashboard();
     } else if (auth.isEmployee()) {
          // Go back to employee portal view
@@ -120,6 +129,7 @@ function handleBackToDashboard() {
     }
 }
 
+// Opens the Account Settings Modal
 function openAccountModal() {
     const accountModal = document.getElementById('account-modal');
     if (accountModal && auth.currentUser) {
@@ -131,7 +141,19 @@ function openAccountModal() {
     }
 }
 
-// Setup listeners for modal close buttons and specific forms like change password
+// Opens the Add Admin Modal
+function openAddAdminModal() {
+    const modal = document.getElementById('add-admin-modal');
+    if (modal) {
+        document.getElementById('add-admin-form')?.reset();
+        document.getElementById('add-admin-error').style.display = 'none';
+        modal.style.display = 'block';
+    } else {
+        console.error("Add admin modal (#add-admin-modal) not found");
+    }
+}
+
+// Setup listeners for all modal close buttons and specific forms
 function setupModalListeners() {
      // General close buttons (using class 'close' on the span/button)
      document.querySelectorAll('.modal .close').forEach(btn => {
@@ -139,7 +161,7 @@ function setupModalListeners() {
              btn.closest('.modal').style.display = 'none';
          });
      });
-     // Specific cancel button for add modal by ID
+     // Specific cancel button for add record modal by ID
      document.getElementById('cancel-record')?.addEventListener('click', () => {
           document.getElementById('add-record-modal').style.display = 'none';
      });
@@ -147,8 +169,8 @@ function setupModalListeners() {
      // Change Password Form Submission
      document.getElementById('change-password-form')?.addEventListener('submit', handleChangePassword);
 
-     // Add listeners for other specific modal form submissions here if needed
-     // e.g., document.getElementById('profile-edit-form')?.addEventListener('submit', handleProfileUpdate);
+     // Add other specific modal form submit/cancel listeners here if needed...
+     // e.g., Profile Edit, Plan Change, Tee Time, Equipment Rental modals
 }
 
 // Handles password change submission (Requires backend endpoint)
@@ -159,8 +181,10 @@ async function handleChangePassword(e) {
     const confirmNewPassword = document.getElementById('confirm-new-password').value;
     const errorDiv = document.getElementById('change-password-error');
     errorDiv.style.display = 'none';
-    if (newPassword !== confirmNewPassword) { errorDiv.textContent = "New passwords do not match."; errorDiv.style.display = 'block'; return; }
-    if (!currentPassword || !newPassword) { errorDiv.textContent = "All password fields are required."; errorDiv.style.display = 'block'; return; }
+    if (newPassword !== confirmNewPassword) { errorDiv.textContent = "New passwords don't match."; errorDiv.style.display = 'block'; return; }
+    // Add length check consistent with signup
+    if (newPassword.length < 4) { errorDiv.textContent = "New password must be at least 4 characters."; errorDiv.style.display = 'block'; return; }
+    if (!currentPassword || !newPassword) { errorDiv.textContent = "All password fields required."; errorDiv.style.display = 'block'; return; }
     try {
         // !!! Ensure '/api/user/change-password' endpoint exists on backend !!!
         const response = await auth.authenticatedFetch('/api/user/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword, newPassword }) });

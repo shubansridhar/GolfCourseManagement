@@ -88,6 +88,18 @@ function showDashboardView() {
         return;
     }
 
+    // Only admins get the original dashboard
+    if (!isAdmin()) {
+        // Employees go to their portal
+        if (isEmployee()) {
+            showEmployeeView();
+            return;
+        }
+        // Members go to member portal
+        showMemberView();
+        return;
+    }
+
     // Hide all views first
     hideAllViews();
 
@@ -112,8 +124,8 @@ function showDashboardView() {
  * Show the table view
  */
 function showTableView(tableName) {
-    // Ensure user is authenticated
-    if (!currentUser) {
+    // Only admins and employees can view raw tables
+    if (!currentUser || (!isAdmin() && !isEmployee())) {
         showAuthView();
         return;
     }

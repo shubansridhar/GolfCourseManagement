@@ -7,6 +7,16 @@ import { loadTableData } from './data.js';
 
 const API_BASE_URL = '/api';
 
+// Map of table-specific descriptions for employee dashboard
+const tableDescriptions = {
+    EMPLOYEE: 'Manage staff information and roles',
+    EMPLOYEE_CONTACT: 'View and update staff contact details',
+    EQUIPMENT: 'Browse and adjust equipment inventory',
+    EQUIPMENT_TYPE: 'Edit equipment categories',
+    HOLE: 'Configure course hole layouts',
+    // add other table descriptions as needed
+};
+
 /**
  * Load and render tables for employee use
  */
@@ -23,20 +33,28 @@ async function loadEmployeeData() {
 
         const tables = await response.json();
         // Exclude member-only tables
-        const filtered = tables.filter(name => !name.startsWith('member') && !name.includes('membership'));
+        const filtered = tables
+            .filter(name => !name.startsWith('member') && !name.includes('membership'))
+            .sort((a, b) => a.localeCompare(b));
 
         if (filtered.length === 0) {
             container.innerHTML = '<p class="no-tables">No tables available for employees.</p>';
             return;
         }
 
-        // Render table cards
-        container.innerHTML = filtered.map(tableName => `
-            <div class="table-card" data-table="${tableName}">
-                <div class="card-icon"><i class="fas fa-${getIcon(tableName)}"></i></div>
-                <div class="card-details"><h4>${formatTableName(tableName)}</h4></div>
-            </div>
-        `).join('');
+        // Render table cards with descriptions
+        container.innerHTML = filtered.map(tableName => {
+            const desc = tableDescriptions[tableName] || 'View and manage records';
+            return `
+                <div class="table-card" data-table="${tableName}">
+                    <div class="card-icon"><i class="fas fa-${getIcon(tableName)}"></i></div>
+                    <div class="card-details">
+                        <h4>${formatTableName(tableName)}</h4>
+                        <p class="card-desc">${desc}</p>
+                    </div>
+                </div>
+            `;
+        }).join('');
 
         // Attach click handlers
         container.querySelectorAll('.table-card').forEach(card => {

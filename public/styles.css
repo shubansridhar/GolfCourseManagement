@@ -1556,3 +1556,44 @@ select {
     text-align: center;
     border-top: 1px solid rgba(0, 0, 0, 0.1);
 }
+
+/* --- Employee Dashboard UI Enhancements --- */
+#employee-view .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+#employee-view .table-card {
+    background-color: var(--vt-white);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+#employee-view .table-card:hover {
+    box-shadow: var(--card-hover-shadow);
+    transform: translateY(-5px);
+}
+
+#employee-view .table-card .card-icon {
+    font-size: 2.5rem;
+    color: var(--secondary-color);
+    margin-bottom: 10px;
+}
+
+#employee-view .table-card .card-details h4 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--text-color);
+}
+
+#employee-view .view-header h2 {
+    font-size: 1.6rem;
+    margin-bottom: 10px;
+}

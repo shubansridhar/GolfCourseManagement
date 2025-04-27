@@ -1,81 +1,61 @@
-/**
- * data.js - Simplified Data Access Operations
- * 
- * Handles interaction with the backend API for:
- * - Fetching table data
- * - Adding/editing/deleting records
- * - Dashboard data management
- */
-
+// public/js/data.js
 import { authenticatedFetch } from './auth.js';
-import { showNotification } from './views.js';
+// Import BOTH showNotification and showTableView from views.js
+import { showNotification, showTableView } from './views.js';
 
 // API endpoints
 const API_BASE_URL = '/api';
 
 /**
- * Fetch the list of tables and populate the dashboard
+ * Fetch the list of tables and populate the dynamic placeholder
  */
 async function fetchTablesAndPopulateDashboard() {
     try {
-        const dashboardContainer = document.getElementById('dashboard-container');
-
-        if (!dashboardContainer) return;
-
-        dashboardContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading tables...</div>';
-
-        const response = await authenticatedFetch(`${API_BASE_URL}/tables`);
-
-        if (!response.ok) {
-            throw new Error('Failed to fetch tables');
+        const placeholder = document.getElementById('dynamic-cards-placeholder');
+        if (!placeholder) {
+            console.error('Dynamic cards placeholder (#dynamic-cards-placeholder) not found.');
+            return;
         }
-
+        placeholder.innerHTML = '<div class="loading" style="grid-column: 1 / -1;"><i class="fas fa-spinner fa-spin"></i> Loading tables...</div>';
+        const response = await authenticatedFetch(`${API_BASE_URL}/tables`);
+        if (!response.ok) throw new Error('Failed to fetch tables');
         const tables = await response.json();
-
-        populateDashboard(tables);
+        populateDashboard(tables, placeholder);
     } catch (error) {
         console.error('Error fetching tables:', error);
         showNotification('Failed to load tables. Please try again.', 'error');
+        const placeholder = document.getElementById('dynamic-cards-placeholder');
+        if (placeholder) {
+            placeholder.innerHTML = '<p class="no-tables error" style="grid-column: 1 / -1;">Failed to load tables.</p>';
+        }
     }
 }
 
 /**
- * Populate the dashboard with table cards
+ * Populate the dynamic placeholder with table cards/categories
  */
-function populateDashboard(tables) {
-    const dashboardContainer = document.getElementById('dashboard-container');
-
-    if (!dashboardContainer) return;
-
+function populateDashboard(tables, targetElement) {
+    if (!targetElement) return;
     if (!tables || tables.length === 0) {
-        dashboardContainer.innerHTML = '<p class="no-tables">No tables available.</p>';
+        targetElement.innerHTML = '<p class="no-tables" style="grid-column: 1 / -1;">No tables available.</p>';
         return;
     }
-
-    // Group tables by category for better organization
     const tableGroups = groupTablesByCategory(tables);
-
     let html = '';
-
-    // Create a section for each group
-    for (const [category, categoryTables] of Object.entries(tableGroups)) {
-        html += `
-            <div class="table-category">
-                <h3>${formatCategoryName(category)}</h3>
-                <div class="table-cards">
-                    ${categoryTables.map(table => createTableCard(table)).join('')}
-                </div>
-            </div>
-        `;
+    for (const category in tableGroups) {
+        if(tableGroups[category].length > 0) {
+             html += tableGroups[category].map(table => createTableCard(table)).join('');
+        }
     }
+    targetElement.innerHTML = html;
 
-    dashboardContainer.innerHTML = html;
-
-    // Add event listeners to table cards
-    document.querySelectorAll('.table-card').forEach(card => {
+    // Add event listeners to the newly added table cards
+    targetElement.querySelectorAll('.table-card.dynamic-card').forEach(card => {
         card.addEventListener('click', function () {
             const tableName = this.dataset.table;
-            loadTableData(tableName);
+            // ---> FIX: Call BOTH functions <---
+            showTableView(tableName); // Show the table view first
+            loadTableData(tableName); // Then load the data into it
         });
     });
 }
@@ -84,35 +64,15 @@ function populateDashboard(tables) {
  * Group tables by category based on naming patterns
  */
 function groupTablesByCategory(tables) {
-    const groups = {
-        'member': [],
-        'course': [],
-        'equipment': [],
-        'employee': [],
-        'other': []
-    };
-
+    const groups = { 'member': [], 'course': [], 'equipment': [], 'employee': [], 'other': [] };
     tables.forEach(table => {
-        if (table.startsWith('member') || table.includes('membership')) {
-            groups.member.push(table);
-        } else if (table.startsWith('course') || table.includes('hole') || table.includes('tee_time')) {
-            groups.course.push(table);
-        } else if (table.includes('equipment') || table.includes('rental')) {
-            groups.equipment.push(table);
-        } else if (table.includes('employee') || table.includes('staff')) {
-            groups.employee.push(table);
-        } else {
-            groups.other.push(table);
-        }
+        if (table.startsWith('member') || table.includes('membership')) groups.member.push(table);
+        else if (table.startsWith('course') || table.includes('hole') || table.includes('tee_time')) groups.course.push(table);
+        else if (table.includes('equipment') || table.includes('rental')) groups.equipment.push(table);
+        else if (table.includes('employee') || table.includes('staff')) groups.employee.push(table);
+        else groups.other.push(table);
     });
-
-    // Remove empty categories
-    for (const category in groups) {
-        if (groups[category].length === 0) {
-            delete groups[category];
-        }
-    }
-
+    for (const category in groups) if (groups[category].length === 0) delete groups[category];
     return groups;
 }
 
@@ -120,34 +80,26 @@ function groupTablesByCategory(tables) {
  * Create a table card HTML
  */
 function createTableCard(tableName) {
-    // Determine icon based on table name
-    let icon = 'table';
-
+    let icon = 'table'; // Default
     if (tableName.includes('member')) icon = 'users';
-    else if (tableName.includes('course')) icon = 'golf-ball';
+    else if (tableName.includes('course') || tableName.includes('hole')) icon = 'golf-ball';
     else if (tableName.includes('tee_time')) icon = 'calendar-alt';
-    else if (tableName.includes('equipment')) icon = 'tools';
+    else if (tableName.includes('equipment') || tableName.includes('rental')) icon = 'tools';
     else if (tableName.includes('employee')) icon = 'user-tie';
-
+    else if (tableName.includes('manage')) icon = 'tasks';
+    // Added 'dynamic-card' class
     return `
-        <div class="table-card" data-table="${tableName}">
-            <div class="card-icon">
-                <i class="fas fa-${icon}"></i>
-            </div>
-            <div class="card-details">
-                <h4>${formatTableName(tableName)}</h4>
-            </div>
-        </div>
-    `;
+        <div class="table-card dynamic-card" data-table="${tableName}" style="cursor: pointer;">
+            <div class="card-icon"><i class="fas fa-${icon}"></i></div>
+            <div class="card-details"><h4>${formatTableName(tableName)}</h4></div>
+        </div>`;
 }
 
 /**
  * Format a table name for display
  */
 function formatTableName(tableName) {
-    return tableName
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, char => char.toUpperCase());
+    return tableName.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
 }
 
 /**
@@ -158,64 +110,43 @@ function formatCategoryName(category) {
 }
 
 /**
- * Load data for a specific table
+ * Load data for a specific table (does NOT change the view)
  */
 async function loadTableData(tableName) {
     try {
-        // Show table view
-        const appView = document.getElementById('app-view');
-        const dashboardView = document.getElementById('dashboard-view');
-        const tableView = document.getElementById('table-view');
-
-        if (!appView || !dashboardView || !tableView) return;
-
-        dashboardView.style.display = 'none';
-        tableView.style.display = 'block';
-
-        // Update selected table heading
+        // Update UI elements specific to the table view
         const selectedTableElement = document.getElementById('selected-table');
-        if (selectedTableElement) {
+         if (selectedTableElement && tableName) {
             selectedTableElement.textContent = formatTableName(tableName);
         }
+         const addRecordBtn = document.getElementById('add-record-btn');
+         if (addRecordBtn) { addRecordBtn.disabled = false; }
+         window.currentTable = tableName;
 
-        // Enable add record button
-        const addRecordBtn = document.getElementById('add-record-btn');
-        if (addRecordBtn) {
-            addRecordBtn.disabled = false;
-        }
-
-        // Save current table name
-        window.currentTable = tableName;
-
-        // Clear existing table
+        // Prepare table for loading
         const dataTable = document.getElementById('data-table');
-        if (dataTable) {
-            const thead = dataTable.querySelector('thead tr');
-            const tbody = dataTable.querySelector('tbody');
+        if (!dataTable) return;
+        const thead = dataTable.querySelector('thead tr');
+        const tbody = dataTable.querySelector('tbody');
+        if (!thead || !tbody) return;
+        thead.innerHTML = '<th>Loading...</th>';
+        tbody.innerHTML = '<tr><td colspan="1" class="loading-cell"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>';
 
-            if (thead && tbody) {
-                thead.innerHTML = '<th>Loading...</th>';
-                tbody.innerHTML = '<tr><td colspan="1" class="loading-cell"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>';
-            }
-        }
-
-        // Fetch table structure and data in parallel
+        // Fetch structure and data
         const [structureResponse, dataResponse] = await Promise.all([
             authenticatedFetch(`${API_BASE_URL}/tables/${tableName}/structure`),
             authenticatedFetch(`${API_BASE_URL}/tables/${tableName}`)
         ]);
-
-        if (!structureResponse.ok || !dataResponse.ok) {
-            throw new Error('Failed to fetch table data');
-        }
-
+        if (!structureResponse.ok || !dataResponse.ok) throw new Error('Failed to fetch table data');
         const structure = await structureResponse.json();
         const data = await dataResponse.json();
+        renderTableData(structure, data); // Render fetched data
 
-        renderTableData(structure, data);
     } catch (error) {
         console.error('Error loading table data:', error);
         showNotification('Failed to load table data. Please try again.', 'error');
+         const tbody = document.querySelector('#data-table tbody');
+         if (tbody) tbody.innerHTML = `<tr><td colspan="1" class="error-table">Failed to load data.</td></tr>`;
     }
 }
 
@@ -225,50 +156,36 @@ async function loadTableData(tableName) {
 function renderTableData(structure, data) {
     const dataTable = document.getElementById('data-table');
     if (!dataTable) return;
-
     const thead = dataTable.querySelector('thead tr');
     const tbody = dataTable.querySelector('tbody');
-
     if (!thead || !tbody) return;
 
-    // Populate header
     thead.innerHTML = structure.map(col => `<th>${col.Field}</th>`).join('') + '<th>Actions</th>';
 
-    // Populate body
     if (data.length === 0) {
         tbody.innerHTML = `<tr><td colspan="${structure.length + 1}" class="empty-table">No records found</td></tr>`;
         return;
     }
-
     tbody.innerHTML = data.map(row => {
-        return `
-            <tr data-id="${row[structure[0].Field]}">
-                ${structure.map(col => `<td>${formatCellValue(row[col.Field])}</td>`).join('')}
+         const primaryKeyField = structure[0]?.Field || '';
+         const recordId = primaryKeyField ? row[primaryKeyField] : null;
+         const actionsDisabled = !recordId ? 'disabled' : '';
+         return `
+            <tr ${recordId ? `data-id="${recordId}"` : ''}>
+                ${structure.map(col => `<td>${escapeHtml(formatCellValue(row[col.Field]))}</td>`).join('')}
                 <td class="actions">
-                    <button class="btn-edit" title="Edit"><i class="fas fa-edit"></i></button>
-                    <button class="btn-delete" title="Delete"><i class="fas fa-trash"></i></button>
+                    <button class="btn-edit" ${actionsDisabled} title="Edit"><i class="fas fa-edit"></i></button>
+                    <button class="btn-delete" ${actionsDisabled} title="Delete"><i class="fas fa-trash"></i></button>
                 </td>
-            </tr>
-        `;
+            </tr>`;
     }).join('');
 
     // Add event listeners to action buttons
     tbody.querySelectorAll('.btn-edit').forEach(btn => {
-        btn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            const row = this.closest('tr');
-            const recordId = row.dataset.id;
-            editRecord(recordId);
-        });
+        btn.addEventListener('click', function (e) { e.stopPropagation(); const row = this.closest('tr'); if (row && row.dataset.id) editRecord(row.dataset.id); });
     });
-
     tbody.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            const row = this.closest('tr');
-            const recordId = row.dataset.id;
-            deleteRecord(recordId);
-        });
+        btn.addEventListener('click', function (e) { e.stopPropagation(); const row = this.closest('tr'); if (row && row.dataset.id) deleteRecord(row.dataset.id); });
     });
 }
 
@@ -277,36 +194,52 @@ function renderTableData(structure, data) {
  */
 function formatCellValue(value) {
     if (value === null || value === undefined) return '-';
-
-    // Check if it's a date
-    if (value instanceof Date || (typeof value === 'string' && !isNaN(Date.parse(value)))) {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(.\d+)?Z?$/;
+    if (typeof value === 'string' && dateRegex.test(value)) {
         const date = new Date(value);
-        if (!isNaN(date.getTime())) {
-            return date.toLocaleDateString();
-        }
+        if (!isNaN(date.getTime())) return date.toLocaleDateString();
     }
-
-    // Check if it's a boolean
-    if (typeof value === 'boolean') {
-        return value ? 'Yes' : 'No';
-    }
-
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (typeof value === 'object' && value !== null && value.type === 'Buffer' && Array.isArray(value.data)) return value.data[0] === 1 ? 'Yes' : 'No';
     return value.toString();
 }
 
 /**
- * Placeholder functions for CRUD operations (implemented later)
+ * Load user data from the admin endpoint and render it to the table
  */
-function editRecord(recordId) {
-    console.log('Edit record:', recordId);
+async function loadAndRenderUsers() {
+    const container = document.getElementById('user-list-container');
+    const tableBody = document.querySelector('#user-list-table tbody');
+    const loadingIndicator = container?.querySelector('.loading');
+    if (!container || !tableBody || !loadingIndicator) { console.error('User management view elements not found.'); return; }
+    loadingIndicator.style.display = 'block';
+    tableBody.innerHTML = '';
+    try {
+        const response = await authenticatedFetch(`${API_BASE_URL}/admin/users`);
+        if (!response.ok) { const d = await response.json(); throw new Error(d.error || 'Server error'); }
+        const users = await response.json();
+        if (users.length === 0) { tableBody.innerHTML = `<tr><td colspan="4" class="empty-table">No users found.</td></tr>`; }
+        else { tableBody.innerHTML = users.map(user => `<tr><td>${user.user_id}</td><td>${escapeHtml(user.username)}</td><td>${escapeHtml(user.role)}</td><td>${new Date(user.created_at).toLocaleString()}</td></tr>`).join(''); }
+    } catch (error) {
+        console.error('Error loading users:', error);
+        showNotification(`Failed to load users: ${error.message}`, 'error');
+        tableBody.innerHTML = `<tr><td colspan="4" class="error-table">Failed to load users.</td></tr>`;
+    } finally { loadingIndicator.style.display = 'none'; }
 }
 
-function deleteRecord(recordId) {
-    console.log('Delete record:', recordId);
+// Helper to prevent basic XSS
+function escapeHtml(unsafe) {
+    if (unsafe === null || unsafe === undefined) return '';
+    return unsafe.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-// Export functions for use in other files
+// Placeholder functions for CRUD
+function editRecord(recordId) { console.log('Edit record:', recordId, 'in table', window.currentTable); showNotification("Edit functionality not implemented yet.", "info"); }
+function deleteRecord(recordId) { console.log('Delete record:', recordId, 'from table', window.currentTable); showNotification("Delete functionality not implemented yet.", "info");}
+
+// Export functions
 export {
     fetchTablesAndPopulateDashboard,
-    loadTableData
-}; 
+    loadTableData,
+    loadAndRenderUsers
+};

@@ -1,242 +1,209 @@
-/**
- * app.js - Main Application Logic
- * 
- * This is the main entry point of the application that:
- * - Initializes the application
- * - Handles authentication
- * - Manages view switching
- * - Sets up global event listeners
- */
+// public/js/app.js
 
-import { showAuthView, showDashboardView, showNotification, showLoginForm, showSignupForm, showMemberView, showEmployeeView, showStatisticsView } from './views.js';
-import { currentUser, authenticatedFetch, handleSignup, handleLogout, checkAdminExists, setCurrentUser } from './auth.js';
-import { fetchTablesAndPopulateDashboard } from './data.js';
-import { loadMemberData, setupMemberEventListeners } from './member.js';
+// Import necessary functions from other modules
+import * as auth from './auth.js';
+import * as views from './views.js';
+import * as data from './data.js';
+import * as member from './member.js';
+import * as employee from './employee.js';
+import * as statistics from './statistics.js';
 
-// Initialize the application when the DOM is fully loaded
-document.addEventListener('DOMContentLoaded', initializeApp);
 
-// Global error handler
-window.addEventListener('unhandledrejection', (event) => {
-    console.error('Unhandled Promise Rejection:', event.reason);
-    showNotification(`Unexpected error: ${event.reason?.message || 'Unknown error'}`, 'error');
-});
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM fully loaded and parsed');
 
-/**
- * Initialize the application
- */
-async function initializeApp() {
-    console.log('Initializing application...');
-
-    // Set up global event listeners
-    setupEventListeners();
-
-    // Check for existing auth token
-    await checkAuthentication();
-}
-
-/**
- * Set up global event listeners
- */
-function setupEventListeners() {
-    // Auth forms
-    const loginForm = document.getElementById('login-form');
-    if (loginForm) {
-        loginForm.addEventListener('submit', handleLogin);
+    // --- Initial Setup ---
+    // Check token - TODO: Add proper token validation later
+    const token = localStorage.getItem('token');
+    if (token) {
+        console.log("Token found, attempting to determine view (validation needed)");
+        // Placeholder: Assume token is valid and try to show appropriate view
+        // Needs backend call to verify token and get user data
+        // fetch('/api/auth/validate', { headers: {'Authorization': `Bearer ${token}`} }) ...
+        // For now, just default to auth view if refresh happens
+        views.showAuthView();
+    } else {
+        views.showAuthView();
     }
 
-    const signupForm = document.getElementById('signup-form');
-    if (signupForm) {
-        signupForm.addEventListener('submit', handleSignup);
-    }
+    // --- Event Listeners ---
 
-    // Auth navigation
-    document.getElementById('show-signup')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        showSignupForm();
+    // Auth Form Switching & Submission
+    document.getElementById('show-signup')?.addEventListener('click', (e) => { e.preventDefault(); views.showSignupForm(); });
+    document.getElementById('show-login')?.addEventListener('click', (e) => { e.preventDefault(); views.showLoginForm(); });
+    document.getElementById('login-form')?.addEventListener('submit', handleLogin);
+    document.getElementById('signup-form')?.addEventListener('submit', auth.handleSignup);
+
+    // Header Buttons
+    document.getElementById('logout-btn')?.addEventListener('click', auth.handleLogout);
+    document.getElementById('statistics-btn')?.addEventListener('click', views.showStatisticsView);
+    document.getElementById('account-btn')?.addEventListener('click', openAccountModal);
+
+    // --- Dashboard Navigation ---
+    // Listener for dynamically loaded table cards is added in data.js/populateDashboard
+
+    // Listener for STATIC User Management card
+    document.getElementById('user-management-card')?.addEventListener('click', () => {
+        if (auth.isAdmin()) {
+            views.showUserManagementView(); // Show the view first
+            data.loadAndRenderUsers();      // THEN load the data for the view
+        } else {
+            views.showNotification('Access Denied: Admin role required.', 'error');
+        }
     });
 
-    document.getElementById('show-login')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        showLoginForm();
-    });
-
-    // User actions
-    document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
-    document.getElementById('statistics-btn')?.addEventListener('click', () => {
-        showStatisticsView();
-    });
-
-    // Navigation
-    document.getElementById('back-to-dashboard-btn')?.addEventListener('click', () => {
-        showDashboardView();
-        fetchTablesAndPopulateDashboard();
-    });
-
-    document.getElementById('back-to-dashboard-from-stats-btn')?.addEventListener('click', () => {
-        showDashboardView();
-        fetchTablesAndPopulateDashboard();
-    });
-
-    document.getElementById('refresh-stats-btn')?.addEventListener('click', () => {
-        showStatisticsView();
-    });
-
-    document.getElementById('back-to-dashboard-from-member-btn')?.addEventListener('click', () => {
-        showDashboardView();
-        fetchTablesAndPopulateDashboard();
-    });
-
-    // Employee view refresh
-    document.getElementById('refresh-employee-data-btn')?.addEventListener('click', () => {
-        showEmployeeView();
-    });
-
-    // Add record modal
+    // Table View Navigation
+    document.getElementById('back-to-dashboard-btn')?.addEventListener('click', handleBackToDashboard);
     document.getElementById('add-record-btn')?.addEventListener('click', openAddRecordModal);
 
-    // Modal close buttons
-    document.querySelectorAll('.close').forEach(btn => {
-        btn.addEventListener('click', closeModal);
-    });
+    // Statistics View Navigation
+    document.getElementById('back-to-dashboard-from-stats-btn')?.addEventListener('click', handleBackToDashboard);
+    document.getElementById('refresh-stats-btn')?.addEventListener('click', statistics.loadStatisticsData);
 
-    document.getElementById('cancel-record')?.addEventListener('click', closeModal);
+    // User Management View Navigation
+    document.getElementById('back-to-dashboard-from-users-btn')?.addEventListener('click', handleBackToDashboard);
+    document.getElementById('refresh-users-btn')?.addEventListener('click', data.loadAndRenderUsers);
 
-    // Member event listeners
-    setupMemberEventListeners();
-}
+    // Employee View Refresh
+    document.getElementById('refresh-employee-data-btn')?.addEventListener('click', employee.loadEmployeeData);
 
-/**
- * Check if user is authenticated
- */
-async function checkAuthentication() {
-    const token = localStorage.getItem('token');
+    // Member View Setup & Refresh
+    member.setupMemberEventListeners(); // Adds its internal listeners
+    document.getElementById('refresh-member-data-btn')?.addEventListener('click', member.loadMemberData);
 
-    if (token) {
-        try {
-            // Try to fetch user data to verify token
-            const response = await fetch('/api/auth/verify', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
 
-            if (response.ok) {
-                const userData = await response.json();
+    // Modals Setup
+    setupModalListeners();
 
-                // Set global user data
-                window.currentUser = userData;
+}); // End DOMContentLoaded
 
-                // Update user display
-                updateUserDisplay(userData);
+// --- Handler Functions ---
 
-                // Show appropriate view based on role
-                if (userData.role === 'member') {
-                    showMemberView();
-                } else if (userData.role === 'employee') {
-                    showEmployeeView();
-                } else {
-                    showDashboardView();
-                    fetchTablesAndPopulateDashboard();
-                }
-
-                return;
-            }
-        } catch (error) {
-            console.error('Authentication error:', error);
-        }
-
-        // If we reach here, authentication failed
-        localStorage.removeItem('token');
-    }
-
-    // No token or invalid token, show auth view
-    showAuthView();
-}
-
-/**
- * Handle login form submission
- */
 async function handleLogin(e) {
     e.preventDefault();
-
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
     const loginError = document.getElementById('login-error');
+    loginError.style.display = 'none';
 
     try {
         const response = await fetch('/api/auth/login', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
         });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Login failed');
 
-        const data = await response.json();
+        handleLoginSuccess(result); // Handle successful login steps
 
-        if (response.ok) {
-            // Store token and user data
-            localStorage.setItem('token', data.token);
-            const userData = {
-                username: data.username,
-                role: data.role
-            };
-
-            // Update user data in auth.js and global reference
-            window.currentUser = setCurrentUser(userData);
-
-            // Update user display
-            updateUserDisplay(window.currentUser);
-
-            // Show appropriate view
-            if (data.role === 'member') {
-                showMemberView();
-            } else if (data.role === 'employee') {
-                showEmployeeView();
-            } else {
-                showDashboardView();
-                fetchTablesAndPopulateDashboard();
-            }
-
-            //showNotification('Login successful!', 'success');
-        } else {
-            loginError.textContent = data.error || 'Login failed';
-            loginError.style.display = 'block';
-        }
     } catch (error) {
         console.error('Login error:', error);
-        loginError.textContent = 'Network error. Please try again.';
+        loginError.textContent = error.message;
         loginError.style.display = 'block';
     }
 }
 
-/**
- * Update user display in header
- */
-function updateUserDisplay(user) {
-    const usernameDisplay = document.getElementById('username-display');
-    const userStatusDisplay = document.getElementById('user-status');
+function handleLoginSuccess(loginData) {
+    localStorage.setItem('token', loginData.token);
+    auth.setCurrentUser({ username: loginData.username, role: loginData.role });
 
-    if (user && usernameDisplay && userStatusDisplay) {
-        usernameDisplay.textContent = `${user.username} (${user.role})`;
-        userStatusDisplay.style.display = 'flex';
+    // Navigate to appropriate view AND load its initial data
+    if (auth.isAdmin()) {
+        views.showDashboardView(); // Shows the dashboard view container
+        data.fetchTablesAndPopulateDashboard(); // Populates the dynamic part
+    } else if (auth.isEmployee()) {
+        views.showEmployeeView(); // Calls loadEmployeeData internally
+    } else {
+        views.showMemberView(); // Calls loadMemberData internally
+    }
+    views.updateHeader();
+}
+
+// Handler for "Back to Dashboard" buttons
+function handleBackToDashboard() {
+     if (auth.isAdmin()) {
+        views.showDashboardView();
+        data.fetchTablesAndPopulateDashboard(); // Reload tables for admin consistency
+    } else if (auth.isEmployee()) {
+         views.showEmployeeView(); // Go back to employee portal
+         // employee.loadEmployeeData(); // Optionally refresh if needed
+    } else {
+         // Members shouldn't see this button typically
+         views.showMemberView();
     }
 }
 
-/**
- * Open the add record modal
- */
-function openAddRecordModal() {
-    const modal = document.getElementById('add-record-modal');
-    if (modal) modal.style.display = 'block';
+function openAccountModal() {
+    const accountModal = document.getElementById('account-modal');
+    if (accountModal && auth.currentUser) {
+        document.getElementById('account-username').textContent = auth.currentUser.username;
+        document.getElementById('account-role').textContent = auth.currentUser.role;
+        document.getElementById('change-password-form')?.reset();
+        document.getElementById('change-password-error').style.display = 'none';
+        accountModal.style.display = 'block';
+    }
 }
 
-/**
- * Close all modals
- */
-function closeModal() {
-    document.querySelectorAll('.modal').forEach(modal => {
-        modal.style.display = 'none';
-    });
-} 
+function openAddRecordModal() {
+     console.log("Add record for table:", window.currentTable);
+     views.showNotification("Add record functionality not yet implemented.", "warning");
+     // TODO: Fetch table structure for window.currentTable
+     // TODO: Dynamically build form in #add-record-form based on structure
+     // TODO: Show #add-record-modal
+}
+
+function setupModalListeners() {
+     // General close buttons (using class 'close')
+     document.querySelectorAll('.modal .close').forEach(btn => {
+         btn.addEventListener('click', () => {
+             btn.closest('.modal').style.display = 'none';
+         });
+     });
+      // Specific cancel buttons by ID if needed
+     document.getElementById('cancel-record')?.addEventListener('click', () => {
+          document.getElementById('add-record-modal').style.display = 'none';
+     });
+
+     // Change Password Form Submission
+     document.getElementById('change-password-form')?.addEventListener('submit', handleChangePassword);
+
+     // Add listeners for other modal submissions here (profile edit, etc.)
+}
+
+async function handleChangePassword(e) {
+    e.preventDefault();
+    const currentPassword = document.getElementById('current-password').value;
+    const newPassword = document.getElementById('new-password').value;
+    const confirmNewPassword = document.getElementById('confirm-new-password').value;
+    const errorDiv = document.getElementById('change-password-error');
+    errorDiv.style.display = 'none';
+
+    if (newPassword !== confirmNewPassword) {
+        errorDiv.textContent = "New passwords do not match.";
+        errorDiv.style.display = 'block'; return;
+    }
+    if (!currentPassword || !newPassword) {
+         errorDiv.textContent = "All password fields are required.";
+        errorDiv.style.display = 'block'; return;
+    }
+
+    try {
+        // !! IMPORTANT: Ensure you have a '/api/user/change-password' endpoint in server.js !!
+        const response = await auth.authenticatedFetch('/api/user/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ currentPassword, newPassword })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Failed to update password');
+
+        views.showNotification('Password updated successfully!', 'success');
+        document.getElementById('account-modal').style.display = 'none';
+
+    } catch (error) {
+        console.error("Change password error:", error);
+        errorDiv.textContent = error.message;
+        errorDiv.style.display = 'block';
+    }
+}

@@ -1,38 +1,29 @@
 /**
  * views.js - Simplified View Management
- * 
- * Handles showing and hiding different views in the application:
- * - Auth view (login/signup)
- * - Dashboard view
- * - Table view
- * - Member view
+ * Handles showing and hiding different views in the application.
  */
 
 import { currentUser, isAdmin, isEmployee } from './auth.js';
 import { loadEmployeeData } from './employee.js';
 import { loadStatisticsData } from './statistics.js';
+// Import the member module to call its load function
+import * as member from './member.js';
+
 
 /**
  * Show the authentication view (login/signup)
  */
 function showAuthView() {
-    // Hide all views first
     hideAllViews();
-
-    // Show auth view
     const authView = document.getElementById('auth-view');
     if (authView) {
         authView.style.display = 'flex';
         document.body.classList.add('auth-background');
     }
-
-    // Hide user status
     const userStatusDisplay = document.getElementById('user-status');
     if (userStatusDisplay) {
         userStatusDisplay.style.display = 'none';
     }
-
-    // Show login form initially
     showLoginForm();
 }
 
@@ -42,16 +33,11 @@ function showAuthView() {
 function showLoginForm() {
     const loginFormContainer = document.getElementById('login-form-container');
     const signupFormContainer = document.getElementById('signup-form-container');
-
     if (loginFormContainer && signupFormContainer) {
         loginFormContainer.style.display = 'block';
         signupFormContainer.style.display = 'none';
-
-        // Clear any error messages
         const loginError = document.getElementById('login-error');
         if (loginError) loginError.style.display = 'none';
-
-        // Reset the form
         const loginForm = document.getElementById('login-form');
         if (loginForm) loginForm.reset();
     }
@@ -63,243 +49,188 @@ function showLoginForm() {
 function showSignupForm() {
     const loginFormContainer = document.getElementById('login-form-container');
     const signupFormContainer = document.getElementById('signup-form-container');
-
     if (loginFormContainer && signupFormContainer) {
         loginFormContainer.style.display = 'none';
         signupFormContainer.style.display = 'block';
-
-        // Clear any error messages
         const signupError = document.getElementById('signup-error');
         if (signupError) signupError.style.display = 'none';
-
-        // Reset the form
         const signupForm = document.getElementById('signup-form');
         if (signupForm) signupForm.reset();
     }
 }
 
 /**
- * Show the dashboard view
+ * Show the dashboard view (routes based on role)
  */
 function showDashboardView() {
-    // Ensure user is authenticated
     if (!currentUser) {
         showAuthView();
         return;
     }
-
-    // Only admins get the original dashboard
+    // Redirect non-admins immediately
     if (!isAdmin()) {
-        // Employees go to their portal
         if (isEmployee()) {
             showEmployeeView();
             return;
         }
-        // Members go to member portal
-        showMemberView();
+        showMemberView(); // Default for non-admin, non-employee (member)
         return;
     }
-
-    // Hide all views first
+    // Only Admins reach here
     hideAllViews();
-
-    // Show app view
     const appView = document.getElementById('app-view');
     if (appView) {
         appView.style.display = 'block';
         document.body.classList.remove('auth-background');
     }
-
-    // Show dashboard view
     const dashboardView = document.getElementById('dashboard-view');
     if (dashboardView) {
         dashboardView.style.display = 'block';
     }
-
-    // Update header
     updateHeader();
+    // NOTE: fetchTablesAndPopulateDashboard is called from app.js after login or back button
 }
 
 /**
  * Show the table view
  */
 function showTableView(tableName) {
-    // Only admins and employees can view raw tables
     if (!currentUser || (!isAdmin() && !isEmployee())) {
         showAuthView();
         return;
     }
-
-    // Hide all views first
     hideAllViews();
-
-    // Show app view
     const appView = document.getElementById('app-view');
     if (appView) {
         appView.style.display = 'block';
     }
-
-    // Show table view
     const tableView = document.getElementById('table-view');
     if (tableView) {
         tableView.style.display = 'block';
     }
-
-    // Update selected table
-    const selectedTableElement = document.getElementById('selected-table');
-    if (selectedTableElement && tableName) {
-        selectedTableElement.textContent = tableName;
-    }
-
-    // Enable add record button
-    const addRecordBtn = document.getElementById('add-record-btn');
-    if (addRecordBtn) {
-        addRecordBtn.disabled = false;
-    }
-
-    // Save current table name
-    window.currentTable = tableName;
+    // Update UI elements - loadTableData called separately
 }
 
 /**
  * Show the member view
  */
 function showMemberView() {
-    // Ensure user is authenticated and is a member
     if (!currentUser) {
         showAuthView();
         return;
     }
-
-    // Hide all views first
     hideAllViews();
-
-    // Show app view
     const appView = document.getElementById('app-view');
     if (appView) {
         appView.style.display = 'block';
         document.body.classList.remove('auth-background');
     }
-
-    // Show member view
     const memberView = document.getElementById('member-view');
     if (memberView) {
         memberView.style.display = 'block';
     }
-
-    // Update header
     updateHeader();
-
-    // Load member data
-    loadMemberData();
+    // ---> Call the imported function <---
+    member.loadMemberData();
 }
 
 /**
  * Show the employee view
  */
 function showEmployeeView() {
-    // Ensure user is authenticated and is an employee
     if (!currentUser || !isEmployee()) {
         showAuthView();
         return;
     }
-
-    // Hide all views first
     hideAllViews();
-
-    // Show app view
     const appView = document.getElementById('app-view');
     if (appView) {
         appView.style.display = 'block';
         document.body.classList.remove('auth-background');
     }
-
-    // Show employee view
     const employeeView = document.getElementById('employee-view');
     if (employeeView) {
         employeeView.style.display = 'block';
     }
-
-    // Update header
     updateHeader();
-
-    // Load employee data
-    loadEmployeeData();
+    loadEmployeeData(); // Call imported function
 }
 
 /**
  * Show the statistics view
  */
 function showStatisticsView() {
-    // Only admin or employee can see statistics
     if (!currentUser || (!isAdmin() && !isEmployee())) {
         showAuthView();
         return;
     }
-
-    // Hide all views first
     hideAllViews();
-
-    // Show app view
     const appView = document.getElementById('app-view');
     if (appView) {
         appView.style.display = 'block';
         document.body.classList.remove('auth-background');
     }
-
-    // Show statistics view
     const statsView = document.getElementById('statistics-view');
     if (statsView) {
         statsView.style.display = 'block';
     }
-
-    // Update header
     updateHeader();
-
-    // Load statistics data
-    loadStatisticsData();
+    loadStatisticsData(); // Call imported function
 }
 
 /**
- * Hide all views
+ * Show the User Management view (Admin only)
  */
-function hideAllViews() {
-    // Auth view
-    const authView = document.getElementById('auth-view');
-    if (authView) {
-        authView.style.display = 'none';
+function showUserManagementView() {
+    if (!currentUser || !isAdmin()) {
+        showDashboardView();
+        return;
     }
-
-    // App view content
+    hideAllViews();
     const appView = document.getElementById('app-view');
     if (appView) {
-        appView.style.display = 'none';
+        appView.style.display = 'block';
+        document.body.classList.remove('auth-background');
+    }
+    const userManagementView = document.getElementById('user-management-view');
+    if (userManagementView) {
+        userManagementView.style.display = 'block';
+    }
+    updateHeader();
+    // loadAndRenderUsers is called from app.js now
+}
+
+/**
+ * Hide all specific view sections
+ */
+function hideAllViews() {
+    const viewsToHide = [
+        'auth-view',
+        'dashboard-view',
+        'table-view',
+        'member-view',
+        'statistics-view',
+        'employee-view',
+        'user-management-view'
+    ];
+
+    viewsToHide.forEach(id => {
+        const view = document.getElementById(id);
+        if (view) {
+            view.style.display = 'none';
+        }
+    });
+
+    // Also ensure app-view container is hidden if auth is showing
+    const appView = document.getElementById('app-view');
+    const authViewCheck = document.getElementById('auth-view');
+    if (appView && authViewCheck && authViewCheck.style.display !== 'none') {
+         appView.style.display = 'none';
     }
 
-    const dashboardView = document.getElementById('dashboard-view');
-    if (dashboardView) {
-        dashboardView.style.display = 'none';
-    }
-
-    const tableView = document.getElementById('table-view');
-    if (tableView) {
-        tableView.style.display = 'none';
-    }
-
-    const memberView = document.getElementById('member-view');
-    if (memberView) {
-        memberView.style.display = 'none';
-    }
-
-    const statisticsView = document.getElementById('statistics-view');
-    if (statisticsView) {
-        statisticsView.style.display = 'none';
-    }
-
-    // Hide the employee view
-    const employeeView = document.getElementById('employee-view');
-    if (employeeView) {
-        employeeView.style.display = 'none';
+    // Remove auth background if not on auth view
+    if (authViewCheck && authViewCheck.style.display === 'none') {
+        document.body.classList.remove('auth-background');
     }
 }
 
@@ -308,16 +239,12 @@ function hideAllViews() {
  */
 function updateHeader() {
     if (!currentUser) return;
-
     const usernameDisplay = document.getElementById('username-display');
     const userStatusDisplay = document.getElementById('user-status');
-
     if (usernameDisplay && userStatusDisplay) {
         usernameDisplay.textContent = `${currentUser.username} (${currentUser.role})`;
         userStatusDisplay.style.display = 'flex';
     }
-
-    // Show stats button only for admin or employee
     const statsBtn = document.getElementById('statistics-btn');
     if (statsBtn) {
         statsBtn.style.display = (isAdmin() || isEmployee()) ? 'inline-flex' : 'none';
@@ -325,30 +252,32 @@ function updateHeader() {
 }
 
 /**
- * Show a notification message
+ * Show a global notification message (uses area in table-view currently)
  */
 function showNotification(message, type = 'info') {
     const notification = document.getElementById('notification');
     const notificationMessage = document.getElementById('notification-message');
-
-    if (!notification || !notificationMessage) return;
-
+    if (!notification || !notificationMessage) {
+        console.warn('Notification elements (#notification / #notification-message) not found. Message:', message);
+        alert(`${type.toUpperCase()}: ${message}`); // Fallback alert
+        return;
+    }
+    // Make notification area visible if needed (e.g. if table-view is hidden)
+    // Ideally, move notification HTML outside specific views for global use.
+    // For now, let's ensure its parent (#table-view?) doesn't prevent visibility.
+    // This is complex, assuming it just works for now.
     notificationMessage.textContent = message;
     notification.className = `notification ${type}`;
     notification.style.display = 'block';
+    // Consider adding 'show' class for animation if CSS uses it: notification.classList.add('show');
 
     setTimeout(() => {
         notification.style.display = 'none';
+        // notification.classList.remove('show');
     }, 5000);
 }
 
-// Placeholder functions that will be implemented elsewhere
-function loadMemberData() {
-    // This will be implemented in the member module
-    console.log('Loading member data...');
-}
-
-// Export functions for use in other files
+// Export functions
 export {
     showAuthView,
     showLoginForm,
@@ -358,7 +287,8 @@ export {
     showMemberView,
     showEmployeeView,
     showStatisticsView,
+    showUserManagementView,
     hideAllViews,
     updateHeader,
     showNotification
-}; 
+};

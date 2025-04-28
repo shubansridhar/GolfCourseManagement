@@ -144,53 +144,88 @@ async function loadTableData(tableName) {
     } catch (error) { console.error('Err load table:', error); showNotification('Failed load table', 'error'); const tbody = document.querySelector('#data-table tbody'); if (tbody) tbody.innerHTML = `<tr><td colspan="1" class="error-table">Error loading data.</td></tr>`; }
 }
 
-// ---> MODIFIED: renderTableData uses permission lists/role for buttons <---
+/**
+ * Render table data to the DOM
+ * MODIFIED: Explicitly hide Actions column for MEMBER and EMPLOYEE tables
+ */
 function renderTableData(structure, tableData) {
     const dataTable = document.getElementById('data-table'); if (!dataTable) return;
     const thead = dataTable.querySelector('thead tr'); const tbody = dataTable.querySelector('tbody'); if (!thead || !tbody) return;
-    const columnCount = structure.length + 1;
-    const friendlyColumnNames = { USER_ID:'User ID', MEMBER_PLAN_ID:'Plan', LNAME:'Last Name', FNAME:'First Name', EMAIL:'Email Address', PHONE_NUMBER:'Phone Number', HANDICAP:'Hcp', JOINDATE:'Joined', TEE_TIME_ID:'TT ID', EQUIPMENT_ID:'Eq ID', RENTAL_DATE:'Rented', RETURN_DATE:'Due', RETURNED:'Ret?', PLAN_ID:'Plan ID', PLAN_TYPE:'Plan Type', FEES:'Fees', AVAILABILITY:'Avail?', COURSE_ID:'Course ID', HOLE_ID:'Hole ID', EMP_FNAME:'First Name', EMP_LNAME:'Last Name', ROLE:'App Role', RENTAL_DISCOUNT:'Discount', DISTANCE_TO_PIN:'Distance', AVAILABLE_SLOTS:'Slots', HIREDATE:'Hired', COURSE_NAME:'Course Name', RENTAL_ID:'Rental ID', RENTAL_FEE:'Fee', PLAN_START_DATE:'Start', PLAN_END_DATE:'End' };
-    thead.innerHTML = structure.map(col => `<th>${friendlyColumnNames[col.Field.toUpperCase()] || col.Field}</th>`).join('') + '<th>Actions</th>';
-    if (tableData.length === 0) { tbody.innerHTML = `<tr><td colspan="${columnCount}" class="empty-table">No records</td></tr>`; return; }
 
     const currentTableUpper = window.currentTable?.toUpperCase();
+    // Determine if the Actions column should be shown for this table
+    const showActionsColumn = !(currentTableUpper === 'MEMBER' || currentTableUpper === 'EMPLOYEE');
+
+    // ---> Add Log <---
+    console.log(`Rendering table: ${currentTableUpper}, Show Actions Column: ${showActionsColumn}`);
+
+    // Filter structure based on current table (e.g., hide Handicap for Member)
+    let columnsToRender = structure;
+    if (currentTableUpper === 'MEMBER') {
+        const hiddenMemberColumns = ['HANDICAP'];
+        columnsToRender = structure.filter(col => !hiddenMemberColumns.includes(col.Field.toUpperCase()));
+    }
+    // Add other column filtering if needed...
+
+    // Determine column count for colspan (Actions column only counts if shown)
+    const columnCount = columnsToRender.length + (showActionsColumn ? 1 : 0);
+
+    // Render headers with friendly names
+    const friendlyColumnNames = { USER_ID:'User ID', MEMBER_PLAN_ID:'Plan', LNAME:'Last Name', FNAME:'First Name', EMAIL:'Email Address', PHONE_NUMBER:'Phone Number', HANDICAP:'Hcp', JOINDATE:'Joined', TEE_TIME_ID:'TT ID', EQUIPMENT_ID:'Eq ID', RENTAL_DATE:'Rented', RETURN_DATE:'Due', RETURNED:'Ret?', PLAN_ID:'Plan ID', PLAN_TYPE:'Plan Type', FEES:'Fees', AVAILABILITY:'Avail?', COURSE_ID:'Course ID', HOLE_ID:'Hole ID', EMP_FNAME:'First Name', EMP_LNAME:'Last Name', ROLE:'App Role', RENTAL_DISCOUNT:'Discount', DISTANCE_TO_PIN:'Distance', AVAILABLE_SLOTS:'Slots', HIREDATE:'Hired', COURSE_NAME:'Course Name', RENTAL_ID:'Rental ID', RENTAL_FEE:'Fee', PLAN_START_DATE:'Start', PLAN_END_DATE:'End' };
+    thead.innerHTML = columnsToRender.map(col =>
+        `<th>${friendlyColumnNames[col.Field.toUpperCase()] || col.Field}</th>`
+    ).join('') + (showActionsColumn ? '<th>Actions</th>' : ''); // Conditionally add Actions header
+
+    // Render table data rows
+    if (tableData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${columnCount}" class="empty-table">No records</td></tr>`;
+        return;
+    }
 
     tbody.innerHTML = tableData.map(row => {
          const recordId = currentPrimaryKeyField ? row[currentPrimaryKeyField] : null;
          const actionsDisabled = !recordId ? 'disabled' : '';
-         let actionButtons = [];
+         let actionsCellHTML = ''; // Start with empty string for the actions cell
 
-         // EDIT Button Logic
-         let showEditButton = !noEditTables.includes(currentTableUpper);
-         if (showEditButton && (currentTableUpper === 'GOLF_COURSE' || currentTableUpper === 'HOLE' || currentTableUpper === 'TEE_TIME')) {
-             if (!isAdmin()) { // Use imported isAdmin()
-                 showEditButton = false; // Only admins can edit these tables
+         // Generate buttons and the actions cell ONLY if showActionsColumn is true
+         if (showActionsColumn) {
+             let actionButtons = []; // Array to hold button HTML strings
+
+             // EDIT Button Logic
+             let showEditButton = !noEditTables.includes(currentTableUpper);
+             if (showEditButton && (currentTableUpper === 'GOLF_COURSE' || currentTableUpper === 'HOLE' || currentTableUpper === 'TEE_TIME')) {
+                 if (!isAdmin()) { showEditButton = false; }
+             }
+             if (showEditButton) { actionButtons.push(`<button class="btn-edit" ${actionsDisabled} title="Edit"><i class="fas fa-edit"></i></button>`); }
+
+             // DELETE Button Logic
+             if (!noDeleteTables.includes(currentTableUpper)) {
+                actionButtons.push(`<button class="btn-delete" ${actionsDisabled} title="Delete"><i class="fas fa-trash"></i></button>`);
+             }
+             // Note: Assign Plan button is inside the MEMBER table check, so it won't render if showActionsColumn is false
+
+             // Create the table cell string if there are buttons
+             if (actionButtons.length > 0) {
+                actionsCellHTML = `<td class="actions">${actionButtons.join('&nbsp;')}</td>`;
+             } else {
+                 actionsCellHTML = `<td class="actions"></td>`; // Render an empty cell if no actions allowed for this specific table
              }
          }
-         if (showEditButton) {
-             actionButtons.push(`<button class="btn-edit" ${actionsDisabled} title="Edit"><i class="fas fa-edit"></i></button>`);
-         }
+         // If showActionsColumn is false, actionsCellHTML remains empty ""
 
-         // ASSIGN PLAN Button (Only for MEMBER table and Employee role)
-         if (currentTableUpper === 'MEMBER' && currentUser?.role === 'employee') {
-            const memberName = `${row.Fname || ''} ${row.Lname || ''}`.trim();
-             actionButtons.push(`<button class="btn-assign-plan" data-userid="${recordId}" data-name="${escapeHtml(memberName)}" title="Assign/Change Plan"><i class="fas fa-id-card"></i></button>`);
-         }
-
-         // DELETE Button (Show unless in noDeleteTables list)
-         if (!noDeleteTables.includes(currentTableUpper)) {
-            actionButtons.push(`<button class="btn-delete" ${actionsDisabled} title="Delete"><i class="fas fa-trash"></i></button>`);
-         }
-
-         return `<tr ${recordId ? `data-id="${recordId}"` : ''}> ${structure.map(col => `<td>${escapeHtml(formatCellValue(row[col.Field]))}</td>`).join('')} <td class="actions">${actionButtons.join('&nbsp;')}</td></tr>`;
+         // Render the row, conditionally adding the actions cell
+         return `<tr ${recordId ? `data-id="${recordId}"` : ''}>
+                    ${columnsToRender.map(col => `<td>${escapeHtml(formatCellValue(row[col.Field]))}</td>`).join('')}
+                    ${actionsCellHTML}
+                 </tr>`;
     }).join('');
 
-    // Attach listeners
+    // Attach listeners - These will only find buttons if they were rendered
     tbody.querySelectorAll('.btn-edit').forEach(btn => { btn.addEventListener('click', function (e) { e.stopPropagation(); const row = this.closest('tr'); if (row && row.dataset.id) editRecord(row.dataset.id); }); });
     tbody.querySelectorAll('.btn-delete').forEach(btn => { btn.addEventListener('click', function (e) { e.stopPropagation(); const row = this.closest('tr'); if (row && row.dataset.id) deleteRecord(row.dataset.id); }); });
+    // Assign plan listener - button only rendered for MEMBER table anyway
     tbody.querySelectorAll('.btn-assign-plan').forEach(btn => { btn.addEventListener('click', function (e) { e.stopPropagation(); const userId = this.dataset.userid; const userName = this.dataset.name; if (userId) { openAssignPlanModal(userId, userName); } else { console.error("Missing user ID"); showNotification("Cannot assign plan: User ID missing.","error"); }}); });
 }
-
 
 
 function formatCellValue(value) { if (value === null || value === undefined) return '-'; const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(.\d+)?Z?$/; if (typeof value === 'string' && dateRegex.test(value)) { const date = new Date(value); if (!isNaN(date.getTime())) return date.toLocaleDateString(); } if (typeof value === 'boolean') return value ? 'Yes' : 'No'; if (typeof value === 'object' && value !== null && value.type === 'Buffer' && Array.isArray(value.data)) return value.data[0] === 1 ? 'Yes' : 'No'; return value.toString(); }

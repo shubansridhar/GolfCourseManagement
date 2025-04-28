@@ -48,9 +48,7 @@ app.use('/api/tables', authenticateToken);
 app.use('/api/admin', authenticateToken); // Protects all /api/admin/*
 app.use('/api/statistics', authenticateToken);
 app.use('/api/member', authenticateToken);
-// Add protection if creating specific non-admin employee routes
-// app.use('/api/employee', authenticateToken);
-
+app.use('/api/staff', authenticateToken); // Protect staff actions
 // === API Route Definitions ===
 
 // --- Authentication Routes ---
@@ -197,76 +195,148 @@ app.get('/api/statistics', async (req, res, next) => {
 
 
 // --- Member API Routes (Updated for NEW schema) ---
+// --- Member API Routes (Updated for NEW schema) ---
+
 // GET /api/member/profile
+
 app.get('/api/member/profile', authenticateToken, async (req, res, next) => {
+
     if (req.user.role !== 'member') {
-        return res.status(403).json({ error: 'Access forbidden. Member role required.' });
+    
+    return res.status(403).json({ error: 'Access forbidden. Member role required.' });
+    
     }
+    
     const userId = req.user.userId;
+    
     try {
-        const [[profile]] = await dbPool.query(`
-        SELECT
-          m.user_id            AS userId,
-          m.Fname              AS firstName,
-          m.Lname              AS lastName,
-          m.Email              AS email,
-          m.Phone_number       AS phone,
-          u.created_at         AS joinDate,
-          m.Member_plan_id     AS planId,
-          mp.Plan_type         AS planType,
-          mp.Fees              AS planFees,
-          pd.Rental_discount   AS rentalDiscount
-        FROM MEMBER m
-        JOIN users u
-          ON m.user_id = u.user_id
-        LEFT JOIN MEMBERSHIP_PLAN mp
-          ON m.Member_plan_id = mp.Plan_id
-        LEFT JOIN PLAN_DISCOUNT pd
-          ON mp.Plan_type = pd.Plan_type
-        WHERE m.user_id = ?
-      `, [userId]);
-
-        if (!profile) {
-            return res.status(404).json({ error: 'Member profile not found.' });
-        }
-        res.json(profile);
+    
+    const [[profile]] = await dbPool.query(`
+    
+    SELECT
+    
+    m.user_id AS userId,
+    
+    m.Fname AS firstName,
+    
+    m.Lname AS lastName,
+    
+    m.Email AS email,
+    
+    m.Phone_number AS phone,
+    
+    u.created_at AS joinDate,
+    
+    m.Member_plan_id AS planId,
+    
+    mp.Plan_type AS planType,
+    
+    mp.Fees AS planFees,
+    
+    pd.Rental_discount AS rentalDiscount
+    
+    FROM MEMBER m
+    
+    JOIN users u
+    
+    ON m.user_id = u.user_id
+    
+    LEFT JOIN MEMBERSHIP_PLAN mp
+    
+    ON m.Member_plan_id = mp.Plan_id
+    
+    LEFT JOIN PLAN_DISCOUNT pd
+    
+    ON mp.Plan_type = pd.Plan_type
+    
+    WHERE m.user_id = ?
+    
+    `, [userId]);
+    
+    
+    
+    if (!profile) {
+    
+    return res.status(404).json({ error: 'Member profile not found.' });
+    
+    }
+    
+    res.json(profile);
+    
     } catch (err) {
-        next(err);
+    
+    next(err);
+    
     }
-});
-
-// PUT /api/member/profile
-app.put('/api/member/profile', authenticateToken, async (req, res, next) => {
+    
+    });
+    
+    
+    
+    // PUT /api/member/profile
+    
+    app.put('/api/member/profile', authenticateToken, async (req, res, next) => {
+    
     if (req.user.role !== 'member') {
-        return res.status(403).json({ error: 'Access forbidden. Member role required.' });
+    
+    return res.status(403).json({ error: 'Access forbidden. Member role required.' });
+    
     }
+    
     const userId = req.user.userId;
+    
     const { firstName, lastName, email, phone } = req.body;
-
+    
+    
+    
     // Simple validation
+    
     if (!firstName || !lastName) {
-        return res.status(400).json({ error: 'First and last name are required.' });
+    
+    return res.status(400).json({ error: 'First and last name are required.' });
+    
     }
-
+    
+    
+    
     try {
-        const [result] = await dbPool.query(`
-      UPDATE MEMBER
-      SET
-        Fname = ?,
-        Lname = ?,
-        Email = ?,
-        Phone_number = ?
-      WHERE user_id = ?
+    
+    const [result] = await dbPool.query(`
+    
+    UPDATE MEMBER
+    
+    SET
+    
+    Fname = ?,
+    
+    Lname = ?,
+    
+    Email = ?,
+    
+    Phone_number = ?
+    
+    WHERE user_id = ?
+    
     `, [firstName, lastName, email, phone, userId]);
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Member profile not found.' });
-        }
-        res.json({ message: 'Profile updated successfully.' });
-    } catch (err) {
-        next(err);
+    
+    
+    
+    if (result.affectedRows === 0) {
+    
+    return res.status(404).json({ error: 'Member profile not found.' });
+    
     }
-});
+    
+    res.json({ message: 'Profile updated successfully.' });
+    
+    } catch (err) {
+    
+    next(err);
+    
+    }
+    
+    });
+    
 // GET /api/member/plans
 app.get('/api/member/plans', async (req, res, next) => { try { const [p] = await dbPool.query(`SELECT mp.*, pd.Rental_discount FROM MEMBERSHIP_PLAN mp LEFT JOIN PLAN_DISCOUNT pd ON mp.Plan_type=pd.Plan_type ORDER BY mp.Fees ASC`); res.json(p); } catch (err) { next(err); } });
 // PUT /api/member/plan
@@ -406,6 +476,81 @@ app.post('/api/member/equipment/:rentalId/return', async (req, res, next) => {
         conn.release();
     }
 });
+
+// ---> ADDED Staff/Admin specific routes for plan assignment <---
+
+// GET /api/staff/plans (Get list of plans for dropdown)
+// Added authenticateToken via app.use('/api/staff', ...)
+app.get('/api/staff/plans', async (req, res, next) => {
+    // Allow Admins or Employees (already checked by middleware applied to group)
+    try {
+        const [plans] = await dbPool.query('SELECT Plan_id, Plan_type, Fees FROM MEMBERSHIP_PLAN ORDER BY Plan_type');
+        res.json(plans);
+    } catch (error) {
+        console.error("Error fetching plans for staff:", error);
+        next(error);
+    }
+});
+
+// PUT /api/staff/members/:userId/plan (Assign/Update a member's plan)
+// Added authenticateToken via app.use('/api/staff', ...)
+// Renamed route slightly for clarity
+app.put('/api/staff/members/:userId/plan', async (req, res, next) => {
+    // Allow Admins or Employees
+     if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) {
+        // Belt-and-suspenders check, though middleware should catch it
+        return res.status(403).json({ error: 'Forbidden: Admin/Employee access required.' });
+    }
+
+    const targetUserId = req.params.userId;
+    let { Plan_id } = req.body; // Plan_id can be ID string, null, or empty string
+
+    // Treat empty string value from dropdown as NULL for removal
+    if (Plan_id === "") {
+        Plan_id = null;
+    }
+
+    if (!targetUserId || targetUserId === 'undefined' || targetUserId === 'null') { // Add checks for invalid userId string
+        return res.status(400).json({ error: 'Target User ID is required.' });
+    }
+
+    // Validate Plan_id exists if not null
+    if (Plan_id !== null) {
+         try {
+             const [planExists] = await dbPool.query('SELECT Plan_id FROM MEMBERSHIP_PLAN WHERE Plan_id = ?', [Plan_id]);
+             if (planExists.length === 0) {
+                 return res.status(400).json({ error: 'Invalid Plan ID selected.' });
+             }
+         } catch(error) { next(error); return; }
+    }
+
+    try {
+        // Ensure target user exists in MEMBER table first
+         const [memberExists] = await dbPool.query('SELECT user_id FROM MEMBER WHERE user_id = ?', [targetUserId]);
+         if (memberExists.length === 0) {
+             return res.status(404).json({ error: 'Member profile not found for the given User ID.' });
+         }
+
+        // Update the plan
+        const [result] = await dbPool.query(
+            'UPDATE MEMBER SET Member_plan_id = ? WHERE user_id = ?',
+            [Plan_id, targetUserId] // Pass validated Plan_id (or null)
+        );
+
+        // Check if update actually changed anything (might already have that plan or null)
+        // if (result.affectedRows === 0) {
+        //     return res.status(404).json({ error: 'Member not found or plan was already set to this value.' });
+        // }
+
+        res.json({ message: `Membership plan updated successfully for user ${targetUserId}` });
+
+    } catch (error) {
+         console.error(`Error updating plan for user ${targetUserId}:`, error);
+         next(error);
+    }
+});
+// --------------------------------------------------------------
+
 
 // --- User Self-Service Routes ---
 // POST /api/user/change-password

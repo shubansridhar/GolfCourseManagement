@@ -84,10 +84,48 @@ async function loadTableData(tableName) {
 }
 
 function renderTableData(structure, tableData) {
-    const dataTable = document.getElementById('data-table'); if (!dataTable) return; const thead = dataTable.querySelector('thead tr'); const tbody = dataTable.querySelector('tbody'); if (!thead || !tbody) return; thead.innerHTML = structure.map(col => `<th>${col.Field}</th>`).join('') + '<th>Actions</th>'; if (tableData.length === 0) { tbody.innerHTML = `<tr><td colspan="${structure.length + 1}" class="empty-table">No records</td></tr>`; return; }
-    tbody.innerHTML = tableData.map(row => { const recordId = currentPrimaryKeyField ? row[currentPrimaryKeyField] : null; const actionsDisabled = !recordId ? 'disabled' : ''; return `<tr ${recordId ? `data-id="${recordId}"` : ''}> ${structure.map(col => `<td>${escapeHtml(formatCellValue(row[col.Field]))}</td>`).join('')} <td class="actions"><button class="btn-edit" ${actionsDisabled} title="Edit"><i class="fas fa-edit"></i></button><button class="btn-delete" ${actionsDisabled} title="Delete"><i class="fas fa-trash"></i></button></td></tr>`; }).join('');
-    tbody.querySelectorAll('.btn-edit').forEach(btn => { btn.addEventListener('click', function (e) { e.stopPropagation(); const row = this.closest('tr'); if (row && row.dataset.id) editRecord(row.dataset.id); }); }); tbody.querySelectorAll('.btn-delete').forEach(btn => { btn.addEventListener('click', function (e) { e.stopPropagation(); const row = this.closest('tr'); if (row && row.dataset.id) deleteRecord(row.dataset.id); }); });
+    const dataTable = document.getElementById('data-table'); if (!dataTable) return; const thead = dataTable.querySelector('thead tr'); const tbody = dataTable.querySelector('tbody'); if (!thead || !tbody) return;
+    const columnCount = structure.length + 1; thead.innerHTML = structure.map(col => `<th>${col.Field}</th>`).join('') + '<th>Actions</th>'; if (tableData.length === 0) { tbody.innerHTML = `<tr><td colspan="${columnCount}" class="empty-table">No records</td></tr>`; return; }
+
+    tbody.innerHTML = tableData.map(row => {
+         const recordId = currentPrimaryKeyField ? row[currentPrimaryKeyField] : null;
+         const actionsDisabled = !recordId ? 'disabled' : '';
+         let actionButtonsHTML = `
+            <button class="btn-edit" ${actionsDisabled} title="Edit"><i class="fas fa-edit"></i></button>
+            <button class="btn-delete" ${actionsDisabled} title="Delete"><i class="fas fa-trash"></i></button>
+         `;
+         // ---> Conditionally Add Assign Plan Button <---
+         if (window.currentTable.toUpperCase() === 'MEMBER' && recordId) {
+            const memberName = `${row.Fname || ''} ${row.Lname || ''}`.trim(); // Get name for modal
+             actionButtonsHTML += `
+                <button class="btn-assign-plan" data-userid="${recordId}" data-name="${escapeHtml(memberName)}" title="Assign/Change Plan" style="margin-left: 5px;"><i class="fas fa-id-card"></i></button>
+             `;
+         }
+         // ---------------------------------------------
+         return `<tr ${recordId ? `data-id="${recordId}"` : ''}> ${structure.map(col => `<td>${escapeHtml(formatCellValue(row[col.Field]))}</td>`).join('')} <td class="actions">${actionButtonsHTML}</td></tr>`;
+    }).join('');
+
+    // Attach standard listeners
+    tbody.querySelectorAll('.btn-edit').forEach(btn => { btn.addEventListener('click', function (e) { e.stopPropagation(); const row = this.closest('tr'); if (row && row.dataset.id) editRecord(row.dataset.id); }); });
+    tbody.querySelectorAll('.btn-delete').forEach(btn => { btn.addEventListener('click', function (e) { e.stopPropagation(); const row = this.closest('tr'); if (row && row.dataset.id) deleteRecord(row.dataset.id); }); });
+
+    // ---> Attach listener for new Assign Plan button <---
+    tbody.querySelectorAll('.btn-assign-plan').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const userId = this.dataset.userid;
+            const userName = this.dataset.name; // Get name from button data attribute
+            if (userId) {
+                openAssignPlanModal(userId, userName); // Call function to open modal
+            } else {
+                console.error("Missing user ID on assign plan button");
+                showNotification("Cannot assign plan: User ID missing.", "error");
+            }
+        });
+    });
+    // ---------------------------------------------------
 }
+
 
 function formatCellValue(value) { if (value === null || value === undefined) return '-'; const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(.\d+)?Z?$/; if (typeof value === 'string' && dateRegex.test(value)) { const date = new Date(value); if (!isNaN(date.getTime())) return date.toLocaleDateString(); } if (typeof value === 'boolean') return value ? 'Yes' : 'No'; if (typeof value === 'object' && value !== null && value.type === 'Buffer' && Array.isArray(value.data)) return value.data[0] === 1 ? 'Yes' : 'No'; return value.toString(); }
 
@@ -127,6 +165,123 @@ async function handleAddEmployeeSubmit() {
     try { const response = await authenticatedFetch(`${API_BASE_URL}/admin/employees`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const result = await response.json(); if (!response.ok) { throw new Error(result.error || `Failed add employee`); } showNotification(result.message || 'Employee created!', 'success'); document.getElementById('add-employee-modal').style.display = 'none'; loadAndRenderUsers(); } catch (error) { console.error("Error adding employee:", error); errorDiv.textContent = error.message; errorDiv.style.display = 'block'; }
 }
 
+// ---> ADD Assign Plan Modal Functions <---
+
+/**
+ * Opens the modal to assign/change a membership plan for a user.
+ * @param {string} userId - The user_id of the member.
+ * @param {string} userName - The name of the member (for display).
+ */
+async function openAssignPlanModal(userId, userName) {
+    const modal = document.getElementById('assign-plan-modal');
+    const memberInfoEl = document.getElementById('assign-plan-member-info');
+    const planSelect = document.getElementById('assign-plan-select');
+    const errorDiv = document.getElementById('assign-plan-error');
+    if (!modal || !memberInfoEl || !planSelect || !errorDiv) {
+        console.error("Assign plan modal elements missing!");
+        showNotification("Cannot open assign plan modal: UI elements missing.", "error");
+        return;
+    }
+
+    console.log(`Opening assign plan modal for User ID: ${userId}, Name: ${userName}`);
+
+    // Store user ID on the modal for the submit handler
+    modal.dataset.userId = userId;
+    memberInfoEl.textContent = `Assign plan for: ${userName || 'Member'} (ID: ${userId})`;
+    errorDiv.style.display = 'none';
+    planSelect.innerHTML = '<option value="">-- Loading Plans --</option>';
+    planSelect.disabled = true;
+
+    modal.style.display = 'block'; // Show modal
+
+    try {
+        // Fetch available plans using the /api/staff/plans endpoint
+        const response = await authenticatedFetch(`${API_BASE_URL}/staff/plans`);
+        if (!response.ok) {
+            const errData = await response.json().catch(()=>({}));
+            throw new Error(errData.error || 'Failed to load membership plans');
+        }
+        const plans = await response.json();
+
+        // Populate dropdown
+        planSelect.innerHTML = ''; // Clear loading message
+        // Add a "None" option for removing a plan
+        const noneOption = document.createElement('option');
+        noneOption.value = ""; // Empty value will be treated as NULL by the submit handler
+        noneOption.textContent = "-- No Plan --";
+        planSelect.appendChild(noneOption);
+
+        if(plans && plans.length > 0) {
+            plans.forEach(plan => {
+                const option = document.createElement('option');
+                option.value = plan.Plan_id;
+                option.textContent = `${plan.Plan_type || plan.Plan_id} ($${plan.Fees !== null ? parseFloat(plan.Fees).toFixed(2) : 'N/A'})`;
+                planSelect.appendChild(option);
+            });
+            planSelect.disabled = false; // Enable dropdown only if plans loaded
+        } else {
+             planSelect.appendChild(new Option("-- No Plans Available --", ""));
+             planSelect.disabled = true; // Keep disabled if no actual plans
+        }
+        // TODO: Add logic here to fetch the member's current plan and set planSelect.value
+
+    } catch (error) {
+        console.error("Error fetching plans for modal:", error);
+        errorDiv.textContent = `Error loading plans: ${error.message}`;
+        errorDiv.style.display = 'block';
+        planSelect.innerHTML = '<option value="">-- Error --</option>';
+        planSelect.disabled = true;
+    }
+}
+
+/**
+ * Handles the submission of the Assign Plan modal.
+ */
+async function handleAssignPlanSubmit() {
+    const modal = document.getElementById('assign-plan-modal');
+    const userId = modal?.dataset.userId; // Retrieve stored userId from modal
+    const planSelect = document.getElementById('assign-plan-select');
+    const errorDiv = document.getElementById('assign-plan-error');
+    if (!userId || !planSelect || !modal || !errorDiv) {
+        console.error("Assign plan modal submit error: elements or userId missing");
+        return;
+    }
+
+    const selectedPlanId = planSelect.value; // This will be "" if "-- No Plan --" is selected
+    errorDiv.style.display = 'none';
+
+    console.log(`Assigning Plan ID: '${selectedPlanId || 'NULL'}' to User ID: ${userId}`);
+
+    try {
+        // Call the NEW backend endpoint to update the plan
+        const response = await authenticatedFetch(`${API_BASE_URL}/staff/members/${userId}/plan`, { // Use PUT
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ Plan_id: selectedPlanId === "" ? null : selectedPlanId }) // Send null if "" selected
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || `Failed to assign plan (Status: ${response.status})`);
+        }
+
+        showNotification(result.message || 'Plan assigned successfully!', 'success');
+        modal.style.display = 'none'; // Close modal
+        // Refresh the MEMBER table data if currently viewing it
+        if (window.currentTable && window.currentTable.toUpperCase() === 'MEMBER') {
+            loadTableData('MEMBER');
+        }
+
+    } catch (error) {
+        console.error("Error assigning plan:", error);
+        errorDiv.textContent = `Error: ${error.message}`;
+        errorDiv.style.display = 'block';
+    }
+}
+// -------------------------------------
+
+
+
 // Export necessary functions
 export {
     fetchTablesAndPopulateDashboard,
@@ -135,5 +290,7 @@ export {
     openAddRecordModal,
     handleAddRecordSubmit,
     handleAddAdminSubmit,
-    handleAddEmployeeSubmit
+    handleAddEmployeeSubmit,
+    openAssignPlanModal,
+    handleAssignPlanSubmit
 };

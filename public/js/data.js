@@ -33,7 +33,7 @@ const noAddTables = [
         let tables = await response.json();
 
         // Keep ONLY tables explicitly listed in customTitles
-        const allowedTables = ['MEMBER', 'HOLE', 'TEE_TIME', 'EMPLOYEE', 'GOLF_COURSE', 'PLAN_DISCOUNT'];
+        const allowedTables = ['MEMBER', 'HOLE', 'EMPLOYEE', 'GOLF_COURSE', 'PLAN_DISCOUNT'];
         tables = tables.filter(table => allowedTables.includes(table.toUpperCase()));
 
         populateDashboard(tables, placeholder);

@@ -383,45 +383,44 @@ function renderEquipment(tab = 'available') {
  */
 async function bookTeeTime(teeTimeId) {
     try {
-        const response = await authenticatedFetch(`${MEMBER_API}/tee-times/${teeTimeId}/book`, {
-            method: 'POST'
-        });
-
-        if (response.ok) {
-            showNotification('Tee time booked successfully!', 'success');
-            await loadMemberData();
-        } else {
-            const error = await response.json();
-            showNotification(error.error || 'Failed to book tee time', 'error');
-        }
-    } catch (error) {
-        console.error('Error booking tee time:', error);
-        showNotification('Error booking tee time. Please try again.', 'error');
+      const res = await authenticatedFetch(`${MEMBER_API}/book-tee-time`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teeTimeId })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Booking failed');
+      }
+      showNotification('Tee time booked!', 'success');
+      await loadMemberData();
+    } catch (e) {
+      console.error(e);
+      showNotification(e.message, 'error');
     }
-}
+  }
 
 /**
  * Cancel a tee time
  */
 async function cancelTeeTime(teeTimeId) {
     try {
-        const response = await authenticatedFetch(`${MEMBER_API}/tee-times/${teeTimeId}/cancel`, {
-            method: 'POST'
-        });
-
-        if (response.ok) {
-            showNotification('Tee time cancelled successfully!', 'success');
-            await loadMemberData();
-        } else {
-            const error = await response.json();
-            showNotification(error.error || 'Failed to cancel tee time', 'error');
-        }
-    } catch (error) {
-        console.error('Error cancelling tee time:', error);
-        showNotification('Error cancelling tee time. Please try again.', 'error');
+      const res = await authenticatedFetch(`${MEMBER_API}/cancel-tee-time`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teeTimeId })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Cancel failed');
+      }
+      showNotification('Tee time cancelled!', 'success');
+      await loadMemberData();
+    } catch (e) {
+      console.error(e);
+      showNotification(e.message, 'error');
     }
-}
-
+  }
 /**
  * Rent equipment
  */
@@ -599,10 +598,83 @@ function openPlanChangeModal() {
     console.log('Open plan change modal');
 }
 
-function openBookTeeTimeModal() {
-    console.log('Open book tee time modal');
-}
-
+async function openBookTeeTimeModal() {
+    const modal = document.getElementById('tee-time-modal');
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Book Tee Time</h2>
+          <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="book-date">Select Date</label>
+            <input type="date" id="book-date" class="form-control" />
+            <button id="load-tee-times-btn" class="btn btn-sm btn-primary" style="margin-left:8px;">
+              Load
+            </button>
+          </div>
+          <div id="available-tee-times-list" style="margin-top:1rem;"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="cancel-booking-btn" class="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
+    `;
+    modal.style.display = 'block';
+  
+    // close handlers
+    modal.querySelector('.close').onclick = () => modal.style.display = 'none';
+    document.getElementById('cancel-booking-btn').onclick = () => modal.style.display = 'none';
+  
+    // hook up the Load button
+    document.getElementById('load-tee-times-btn').onclick = loadAvailableTeeTimes;
+  }
+  
+  async function loadAvailableTeeTimes() {
+    const date = document.getElementById('book-date').value;
+    if (!date) {
+      showNotification('Please pick a date first.', 'warning');
+      return;
+    }
+  
+    let times;
+    try {
+      const resp = await authenticatedFetch(`${MEMBER_API}/available-tee-times?date=${date}`);
+      if (!resp.ok) throw await resp.json();
+      times = await resp.json();
+    } catch (err) {
+      console.error(err);
+      showNotification(err.error || 'Failed to load tee times', 'error');
+      return;
+    }
+  
+    const list = document.getElementById('available-tee-times-list');
+    if (times.length === 0) {
+      list.innerHTML = '<p>No available slots on that date.</p>';
+      return;
+    }
+  
+    list.innerHTML = times.map(tt => `
+      <div class="tee-time-card">
+        <div class="tee-time-info">
+          <h4>${new Date(tt.Date).toLocaleDateString()} @ ${tt.Time}</h4>
+          <p><strong>Course:</strong> ${tt.Course_name}</p>
+          <p><strong>Slots:</strong> ${tt.Available_slots}</p>
+        </div>
+        <button class="btn btn-sm btn-success book-btn" data-id="${tt.Tee_time_id}">
+          <i class="fas fa-check"></i> Book
+        </button>
+      </div>
+    `).join('');
+  
+    // attach booking handlers
+    list.querySelectorAll('.book-btn').forEach(btn => {
+        btn.onclick = () => bookTeeTime(btn.dataset.id)
+          .then(() => document.getElementById('tee-time-modal').style.display = 'none');
+      });
+  }
+  
 function openRentEquipmentModal() {
     console.log('Open rent equipment modal');
 }
@@ -613,5 +685,8 @@ export {
     handleProfileSave,
     fetchMemberProfile,
     loadMemberData,
-    setupMemberEventListeners
+    setupMemberEventListeners,
+    openBookTeeTimeModal,
+    bookTeeTime,
+    cancelTeeTime
 }; 

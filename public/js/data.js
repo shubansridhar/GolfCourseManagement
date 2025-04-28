@@ -36,8 +36,8 @@ function populateDashboard(tables, targetElement) {
     targetElement.querySelectorAll('.table-card.dynamic-card').forEach(card => {
         card.addEventListener('click', function () {
             const tableName = this.dataset.table;
-            showTableView(tableName);
-            loadTableData(tableName);
+            showTableView(tableName); // Show the view
+            loadTableData(tableName); // Load data into the view
         });
     });
 }
@@ -95,39 +95,23 @@ async function deleteRecord(recordId) {
 
 function editRecord(recordId) { console.log('Edit record:', recordId); showNotification("Edit functionality not implemented yet.", "info"); /* TODO */ }
 
-
-// ---> ADD NEW FUNCTION to handle Add Admin submission <---
 async function handleAddAdminSubmit() {
-    const usernameInput = document.getElementById('add-admin-username');
-    const passwordInput = document.getElementById('add-admin-password');
-    const errorDiv = document.getElementById('add-admin-error');
-    errorDiv.style.display = 'none';
-
-    const username = usernameInput.value.trim();
-    const password = passwordInput.value;
-
-    // *** Update password length check ***
-    if (!username || !password) { errorDiv.textContent = 'Username and password required.'; errorDiv.style.display = 'block'; return; }
-    if (password.length < 4) { errorDiv.textContent = 'Password must be at least 4 characters.'; errorDiv.style.display = 'block'; return; }
-
-    try {
-        const response = await authenticatedFetch(`${API_BASE_URL}/admin/users`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
-        const result = await response.json();
-        if (!response.ok) { throw new Error(result.error || `Failed add admin (Status: ${response.status})`); }
-        showNotification(result.message || 'Admin created!', 'success');
-        document.getElementById('add-admin-modal').style.display = 'none';
-        loadAndRenderUsers(); // Refresh user list
-    } catch (error) { console.error("Error adding admin:", error); errorDiv.textContent = error.message; errorDiv.style.display = 'block'; }
+    const usernameInput = document.getElementById('add-admin-username'); const passwordInput = document.getElementById('add-admin-password'); const errorDiv = document.getElementById('add-admin-error'); errorDiv.style.display = 'none'; const username = usernameInput.value.trim(); const password = passwordInput.value; if (!username || !password) { errorDiv.textContent = 'Username/password required.'; errorDiv.style.display = 'block'; return; } if (password.length < 4) { errorDiv.textContent = 'Password min 4 chars.'; errorDiv.style.display = 'block'; return; }
+    try { const response = await authenticatedFetch(`${API_BASE_URL}/admin/users`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) }); const result = await response.json(); if (!response.ok) { throw new Error(result.error || `Failed add admin`); } showNotification(result.message || 'Admin created!', 'success'); document.getElementById('add-admin-modal').style.display = 'none'; loadAndRenderUsers(); } catch (error) { console.error("Error adding admin:", error); errorDiv.textContent = error.message; errorDiv.style.display = 'block'; }
 }
-// ---------------------------------------------------------
 
+async function handleAddEmployeeSubmit() {
+    const form = document.getElementById('add-employee-form'); const errorDiv = document.getElementById('add-employee-error'); if (!form || !errorDiv) { console.error("Add employee form missing"); return; } errorDiv.style.display = 'none'; const formData = new FormData(form); const payload = {}; let isValid = true; payload.username = formData.get('username')?.trim(); payload.password = formData.get('password'); payload.fname = formData.get('fname')?.trim(); payload.lname = formData.get('lname')?.trim(); payload.role = formData.get('role')?.trim(); payload.email = formData.get('email')?.trim() || null; payload.phone = formData.get('phone')?.trim() || null; if (!payload.username || !payload.password || !payload.fname || !payload.lname || !payload.role) { errorDiv.textContent = 'Username, password, names, app role required.'; isValid = false; } else if (payload.password.length < 4) { errorDiv.textContent = 'Password min 4 chars.'; isValid = false; } if (!isValid) { errorDiv.style.display = 'block'; return; }
+    try { const response = await authenticatedFetch(`${API_BASE_URL}/admin/employees`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const result = await response.json(); if (!response.ok) { throw new Error(result.error || `Failed add employee`); } showNotification(result.message || 'Employee created!', 'success'); document.getElementById('add-employee-modal').style.display = 'none'; loadAndRenderUsers(); } catch (error) { console.error("Error adding employee:", error); errorDiv.textContent = error.message; errorDiv.style.display = 'block'; }
+}
 
-// Export necessary functions including the new one
+// Export necessary functions
 export {
     fetchTablesAndPopulateDashboard,
     loadTableData,
     loadAndRenderUsers,
     openAddRecordModal,
     handleAddRecordSubmit,
-    handleAddAdminSubmit // <-- Export new function
+    handleAddAdminSubmit,
+    handleAddEmployeeSubmit
 };

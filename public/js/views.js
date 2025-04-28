@@ -2,315 +2,97 @@
 
 /**
  * views.js - Simplified View Management
- * Handles showing and hiding different views in the application.
  */
 
 import { currentUser, isAdmin, isEmployee } from './auth.js';
 import { loadEmployeeData } from './employee.js';
 import { loadStatisticsData } from './statistics.js';
-// Import the member module to call its load function
 import * as member from './member.js';
 
-// --- Helper function to check admin existence via API ---
+// Helper function to check admin existence via API
 async function checkAdminExists() {
-     try {
-        // Use relative path for API call from frontend JS
-        const response = await fetch('/api/auth/admin-exists');
-        if (!response.ok) {
-            console.error("API Error checking admin existence:", response.status);
-            return true; // Assume exists on error for safety
-        }
-        const data = await response.json();
-        return data.exists;
-    } catch (error) {
-        console.error('Network error checking admin existence:', error);
-        return true; // Assume exists on error for safety
-    }
-}
-// -------------------------------------------------------
-
-
-/**
- * Show the authentication view (login/signup)
- */
-function showAuthView() {
-    hideAllViews(); // Hide all other views first
-    const authView = document.getElementById('auth-view');
-    if (authView) {
-        authView.style.display = 'flex'; // Use flex for centering auth-container
-        document.body.classList.add('auth-background');
-    }
-    const userStatusDisplay = document.getElementById('user-status');
-    if (userStatusDisplay) {
-        userStatusDisplay.style.display = 'none'; // Hide user status/logout in auth view
-    }
-    showLoginForm(); // Default to showing the login form
+     try { const resp = await fetch('/api/auth/admin-exists'); if (!resp.ok) { console.error("API Err check admin:", resp.status); return true; } const data = await resp.json(); return data.exists; } catch (error) { console.error('Net err check admin:', error); return true; }
 }
 
+// --- Show/Hide Functions ---
+
+function showAuthView() { hideAllViews(); const aV=document.getElementById('auth-view'); if(aV){aV.style.display='flex'; document.body.classList.add('auth-background');} const uS=document.getElementById('user-status'); if(uS)uS.style.display='none'; showLoginForm(); }
+function showLoginForm() { const lFC=document.getElementById('login-form-container'); const sFC=document.getElementById('signup-form-container'); if(lFC&&sFC){lFC.style.display='block'; sFC.style.display='none'; const lE=document.getElementById('login-error'); if(lE)lE.style.display='none'; const lF=document.getElementById('login-form'); if(lF)lF.reset();} }
+
 /**
- * Show the login form within the auth view
+ * Show the signup form AND dynamically add Admin option AND set initial field visibility
  */
-function showLoginForm() {
+async function showSignupForm() { // Make async
     const loginFormContainer = document.getElementById('login-form-container');
     const signupFormContainer = document.getElementById('signup-form-container');
-    if (loginFormContainer && signupFormContainer) {
-        loginFormContainer.style.display = 'block';
-        signupFormContainer.style.display = 'none';
-        const loginError = document.getElementById('login-error');
-        if (loginError) loginError.style.display = 'none';
-        const loginForm = document.getElementById('login-form');
-        if (loginForm) loginForm.reset(); // Reset form fields
-    }
-}
+    const roleSelect = document.getElementById('signup-role');
+    const adminRoleInfo = document.getElementById('admin-role-info');
+    const memberFieldsDiv = document.getElementById('member-fields'); // Get member fields container
+    const fnameInput = document.getElementById('signup-fname');
+    const lnameInput = document.getElementById('signup-lname');
 
-/**
- * Show the signup form AND dynamically add Admin option AND trigger initial role check
- */
-async function showSignupForm() { // Make async to await checkAdminExists
-    const loginFormContainer = document.getElementById('login-form-container');
-    const signupFormContainer = document.getElementById('signup-form-container');
-    const roleSelect = document.getElementById('signup-role'); // Get role dropdown
-    const adminRoleInfo = document.getElementById('admin-role-info'); // Get info text
 
-    if (loginFormContainer && signupFormContainer && roleSelect && adminRoleInfo) {
+    if (loginFormContainer && signupFormContainer && roleSelect && adminRoleInfo && memberFieldsDiv) {
         // Show signup, hide login
         loginFormContainer.style.display = 'none';
         signupFormContainer.style.display = 'block';
 
-        // --- Dynamic Admin Option Logic ---
-        const adminExists = await checkAdminExists(); // Check backend if admin exists
-
-        // Remove existing admin option first (if present from previous call)
+        // Dynamic Admin Option Logic
+        const adminExists = await checkAdminExists();
         const existingAdminOption = roleSelect.querySelector('option[value="admin"]');
-        if (existingAdminOption) {
-            existingAdminOption.remove();
-        }
-
+        if (existingAdminOption) existingAdminOption.remove();
+        const existingEmployeeOption = roleSelect.querySelector('option[value="employee"]');
+        if (existingEmployeeOption) existingEmployeeOption.remove(); // Ensure employee removed
         if (!adminExists) {
-            // If no admin exists, add the 'Admin' option to the select dropdown
-            console.log("No admin exists, adding Admin option to signup.");
-            const adminOption = document.createElement('option');
-            adminOption.value = 'admin';
-            adminOption.textContent = 'Admin (First Setup)';
-            roleSelect.appendChild(adminOption); // Add it
-            adminRoleInfo.style.display = 'block'; // Show info text
+            console.log("No admin exists, adding Admin option.");
+            const adminOption = document.createElement('option'); adminOption.value = 'admin'; adminOption.textContent = 'Admin (First Setup)'; roleSelect.appendChild(adminOption); adminRoleInfo.style.display = 'block';
         } else {
-            // If admin exists, ensure the info text is hidden
-            console.log("Admin exists, hiding Admin option/info.");
             adminRoleInfo.style.display = 'none';
         }
-        // ---------------------------------
 
-        // Clear any previous signup error messages
-        const signupError = document.getElementById('signup-error');
-        if (signupError) signupError.style.display = 'none';
+        // Clear errors & reset form
+        const signupError = document.getElementById('signup-error'); if (signupError) signupError.style.display = 'none';
+        const signupForm = document.getElementById('signup-form'); if (signupForm) signupForm.reset();
 
-        // Reset the signup form fields
-        const signupForm = document.getElementById('signup-form');
-        if (signupForm) signupForm.reset();
-
-        // --- Manually trigger role check based on current value ---
-        // This makes the #member-fields show/hide correctly on initial display
-        if (roleSelect) {
-            // Create and dispatch a 'change' event
-            // The existing listener in app.js should pick this up
-            console.log("Dispatching initial change event for role select");
-            roleSelect.dispatchEvent(new Event('change')); // Dispatch event
+        // ---> FIX: Set initial visibility DIRECTLY based on default dropdown value <---
+        const initialRole = roleSelect.value; // Get the default selected value
+        console.log("Setting initial field visibility for role:", initialRole);
+        if (initialRole === 'member') {
+            memberFieldsDiv.style.display = 'block'; // Show member fields
+            if (fnameInput) fnameInput.required = true;
+            if (lnameInput) lnameInput.required = true;
+        } else {
+            memberFieldsDiv.style.display = 'none'; // Hide member fields
+            if (fnameInput) fnameInput.required = false;
+            if (lnameInput) lnameInput.required = false;
         }
-        // -----------------------------------------------------------
-    }
-}
+        // --------------------------------------------------------------------------
 
-
-/**
- * Show the main dashboard view (routes based on role)
- */
-function showDashboardView() {
-    if (!currentUser) { showAuthView(); return; }
-    // Redirect non-admins immediately
-    if (!isAdmin()) {
-        if (isEmployee()) { showEmployeeView(); return; }
-        showMemberView(); return; // Default for non-admin, non-employee
-    }
-    // Only Admins reach here
-    hideAllViews();
-    const appView = document.getElementById('app-view'); if (appView) { appView.style.display = 'block'; }
-    const dashboardView = document.getElementById('dashboard-view'); if (dashboardView) { dashboardView.style.display = 'block'; }
-    updateHeader();
-    // Note: Data for admin dashboard (fetchTablesAndPopulateDashboard) is loaded from app.js
-}
-
-/**
- * Show the generic table view - data loading is separate
- */
-function showTableView(tableName) { // tableName is used by loadTableData to update header
-    if (!currentUser || (!isAdmin() && !isEmployee())) { showAuthView(); return; } // Auth check
-    hideAllViews();
-    const appView = document.getElementById('app-view'); if (appView) { appView.style.display = 'block'; }
-    const tableView = document.getElementById('table-view'); if (tableView) { tableView.style.display = 'block'; }
-    // Header update and data loading happen in loadTableData (triggered by listener)
-}
-
-/**
- * Show the member view
- */
-function showMemberView() {
-    if (!currentUser) { showAuthView(); return; } // Any logged-in user can see this if not admin/employee
-    hideAllViews();
-    const appView = document.getElementById('app-view'); if (appView) { appView.style.display = 'block'; }
-    const memberView = document.getElementById('member-view'); if (memberView) { memberView.style.display = 'block'; }
-    updateHeader();
-    member.loadMemberData(); // Call imported function from member.js
-}
-
-/**
- * Show the employee view
- */
-function showEmployeeView() {
-    if (!currentUser || !isEmployee()) { showAuthView(); return; } // isEmployee includes admin check
-    hideAllViews();
-    const appView = document.getElementById('app-view'); if (appView) { appView.style.display = 'block'; }
-    const employeeView = document.getElementById('employee-view'); if (employeeView) { employeeView.style.display = 'block'; }
-    updateHeader();
-    loadEmployeeData(); // Call imported function from employee.js
-}
-
-/**
- * Show the statistics view
- */
-function showStatisticsView() {
-    if (!currentUser || (!isAdmin() && !isEmployee())) { showAuthView(); return; }
-    hideAllViews();
-    const appView = document.getElementById('app-view'); if (appView) { appView.style.display = 'block'; }
-    const statsView = document.getElementById('statistics-view'); if (statsView) { statsView.style.display = 'block'; }
-    updateHeader();
-    loadStatisticsData(); // Call imported function from statistics.js
-}
-
-/**
- * Show the User Management view (Admin only)
- */
-function showUserManagementView() {
-    if (!currentUser || !isAdmin()) { showDashboardView(); return; } // Redirect if not admin
-    hideAllViews();
-    const appView = document.getElementById('app-view'); if (appView) { appView.style.display = 'block'; }
-    const userManagementView = document.getElementById('user-management-view'); if (userManagementView) { userManagementView.style.display = 'block'; }
-    updateHeader();
-    // Note: loadAndRenderUsers is called from app.js after this function
-}
-
-/**
- * Hide all specific view sections within main and manage body class/header status
- */
-function hideAllViews() {
-    const viewsToHide = [
-        'auth-view',
-        'dashboard-view',
-        'table-view',
-        'member-view',
-        'statistics-view',
-        'employee-view',
-        'user-management-view'
-    ];
-    let isAuthViewVisible = false; // Flag to check if auth view ends up visible
-
-    viewsToHide.forEach(id => {
-        const view = document.getElementById(id);
-        if (view) {
-            if (id === 'auth-view' && view.style.display !== 'none') {
-                isAuthViewVisible = true; // Check before hiding
-            }
-            view.style.display = 'none';
-        }
-    });
-
-    // Manage app-view container and body class based on final state
-    const appView = document.getElementById('app-view');
-    if (appView) {
-         // Show app-view only if auth-view is hidden (meaning user should be logged in)
-         // This logic might need refinement depending on exact flow after hiding all
-         // Let's assume if auth-view was hidden, app-view should show (unless specifically showing auth-view)
-         // If showAuthView called hideAllViews, isAuthViewVisible will be true *before* hiding,
-         // but showAuthView explicitly shows auth-view *after* hideAllViews.
-         // Let's simplify: showing any view other than auth should ensure appView is visible.
-         // HideAllViews just hides everything; the subsequent show* function handles appView visibility.
-         // So, just manage body class and header here.
-    }
-
-    // Manage body background class
-    const authViewCheck = document.getElementById('auth-view'); // Check again after potential hide
-    if (authViewCheck && authViewCheck.style.display !== 'none') {
-        document.body.classList.add('auth-background');
+        // REMOVED: Dispatching event - we now handle initial state directly above.
+        // if (roleSelect) {
+        //     console.log("Dispatching initial change event for role select");
+        //     roleSelect.dispatchEvent(new Event('change'));
+        // }
     } else {
-         document.body.classList.remove('auth-background');
-    }
-
-     // Hide user status display when in auth view
-    const userStatusDisplay = document.getElementById('user-status');
-    if (userStatusDisplay && authViewCheck && authViewCheck.style.display !== 'none') {
-        userStatusDisplay.style.display = 'none';
+         console.error("One or more signup form elements not found in showSignupForm!");
     }
 }
 
 
-/**
- * Update the header display based on current user
- */
-function updateHeader() {
-    const userStatusDisplay = document.getElementById('user-status');
-    if (!currentUser) { // Hide header elements if logged out
-         if (userStatusDisplay) userStatusDisplay.style.display = 'none';
-         return;
-    }
-    // If logged in, show elements
-    const usernameDisplay = document.getElementById('username-display');
-    if (usernameDisplay && userStatusDisplay) {
-        usernameDisplay.textContent = `${currentUser.username} (${currentUser.role})`;
-        userStatusDisplay.style.display = 'flex'; // Show the whole user status area
-    }
-    // Conditionally show stats button
-    const statsBtn = document.getElementById('statistics-btn');
-    if (statsBtn) {
-        statsBtn.style.display = (isAdmin() || isEmployee()) ? 'inline-flex' : 'none';
-    }
-}
+function showDashboardView() { if(!currentUser){showAuthView(); return;} if(!isAdmin()){if(isEmployee()){showEmployeeView(); return;} showMemberView(); return;} hideAllViews(); const aV=document.getElementById('app-view'); if(aV)aV.style.display='block'; const dV=document.getElementById('dashboard-view'); if(dV)dV.style.display='block'; updateHeader(); }
+function showTableView(tableName) { if(!currentUser||(!isAdmin()&&!isEmployee())){showAuthView();return;} hideAllViews(); const aV=document.getElementById('app-view'); if(aV)aV.style.display='block'; const tV=document.getElementById('table-view'); if(tV)tV.style.display='block'; }
+function showMemberView() { if(!currentUser){showAuthView(); return;} hideAllViews(); const aV=document.getElementById('app-view'); if(aV)aV.style.display='block'; const mV=document.getElementById('member-view'); if(mV)mV.style.display='block'; updateHeader(); member.loadMemberData(); }
+function showEmployeeView() { if(!currentUser||!isEmployee()){showAuthView(); return;} hideAllViews(); const aV=document.getElementById('app-view'); if(aV)aV.style.display='block'; const eV=document.getElementById('employee-view'); if(eV)eV.style.display='block'; updateHeader(); loadEmployeeData(); }
+function showStatisticsView() { if(!currentUser||(!isAdmin()&&!isEmployee())){showAuthView();return;} hideAllViews(); const aV=document.getElementById('app-view'); if(aV)aV.style.display='block'; const sV=document.getElementById('statistics-view'); if(sV)sV.style.display='block'; updateHeader(); loadStatisticsData(); }
+function showUserManagementView() { if (!currentUser||!isAdmin()){showDashboardView();return;} hideAllViews(); const aV=document.getElementById('app-view'); if(aV)aV.style.display='block'; const uMV=document.getElementById('user-management-view'); if(uMV)uMV.style.display='block'; updateHeader(); }
 
-/**
- * Show a global notification message (uses area in table-view currently)
- */
-function showNotification(message, type = 'info') {
-    // Ideally, notification HTML should be global
-    const notification = document.getElementById('notification');
-    const notificationMessage = document.getElementById('notification-message');
-    if (!notification || !notificationMessage) {
-        console.warn('Notification elements (#notification / #notification-message) not found. Message:', message);
-        alert(`${type.toUpperCase()}: ${message}`); // Fallback alert
-        return;
-    }
-    notificationMessage.textContent = message;
-    notification.className = `notification ${type}`;
-    notification.style.display = 'block';
-    // Consider adding 'show' class for animation if CSS uses it: notification.classList.add('show');
+function hideAllViews() { const views=['auth-view','dashboard-view','table-view','member-view','statistics-view','employee-view','user-management-view']; views.forEach(id=>{const v=document.getElementById(id); if(v)v.style.display='none';}); const aV=document.getElementById('app-view'); const aVC=document.getElementById('auth-view'); if(aV&&aVC){aV.style.display=(aVC.style.display==='none')?'block':'none';} if(aVC&&aVC.style.display!=='none'){document.body.classList.add('auth-background');}else{document.body.classList.remove('auth-background');} const uS=document.getElementById('user-status'); if(uS&&aVC&&aVC.style.display!=='none'){uS.style.display='none';} }
+function updateHeader() { const uS=document.getElementById('user-status'); if(!currentUser){if(uS)uS.style.display='none';return;} const uD=document.getElementById('username-display'); if(uD&&uS){uD.textContent=`${currentUser.username} (${currentUser.role})`;uS.style.display='flex';} const sB=document.getElementById('statistics-btn'); if(sB){sB.style.display=(isAdmin()||isEmployee())?'inline-flex':'none';} }
+function showNotification(message, type='info') { const n=document.getElementById('notification'); const nM=document.getElementById('notification-message'); if(!n||!nM){console.warn('Notification missing:',message);alert(`${type.toUpperCase()}: ${message}`);return;} nM.textContent=message; n.className=`notification ${type}`; n.style.display='block'; setTimeout(()=>{n.style.display='none';},5000); }
 
-    setTimeout(() => {
-        notification.style.display = 'none';
-        // notification.classList.remove('show');
-    }, 5000);
-}
-
-
-// Export functions needed by other modules
+// Export functions
 export {
-    showAuthView,
-    showLoginForm,
-    showSignupForm,
-    showDashboardView,
-    showTableView,
-    showMemberView,
-    showEmployeeView,
-    showStatisticsView,
-    showUserManagementView,
-    hideAllViews,
-    updateHeader,
-    showNotification
+    showAuthView, showLoginForm, showSignupForm, showDashboardView, showTableView,
+    showMemberView, showEmployeeView, showStatisticsView, showUserManagementView,
+    hideAllViews, updateHeader, showNotification
 };

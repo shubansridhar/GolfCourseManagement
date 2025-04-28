@@ -29,67 +29,33 @@
     <div class="container">
         <main>
             <div id="auth-view" style="display: none;">
-                <div id="login-form-container" class="auth-container">
-                    <h2>Login</h2>
-                    <form id="login-form">
-                        <div class="form-group">
-                            <label for="login-username">Username</label>
-                            <input type="text" id="login-username" name="username" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="login-password">Password</label>
-                            <input type="password" id="login-password" name="password" required>
-                        </div>
-                        <div id="login-error" class="auth-error" style="display: none;"></div>
-                        <button type="submit" class="btn btn-primary btn-block">Login</button>
-                    </form>
-                    <p class="auth-switch">Don't have an account? <a href="#" id="show-signup">Sign Up</a></p>
-                </div>
+                <div id="login-form-container" class="auth-container"><h2>Login</h2><form id="login-form"><div class="form-group"><label for="login-username">Username</label><input type="text" id="login-username" name="username" required></div><div class="form-group"><label for="login-password">Password</label><input type="password" id="login-password" name="password" required></div><div id="login-error" class="auth-error" style="display: none;"></div><button type="submit" class="btn btn-primary btn-block">Login</button></form><p class="auth-switch">Don't have an account? <a href="#" id="show-signup">Sign Up</a></p></div>
 
                 <div id="signup-form-container" class="auth-container" style="display: none;">
                     <h2>Sign Up</h2>
                     <form id="signup-form">
-                        <div class="form-group">
-                            <label for="signup-username">Username *</label>
-                            <input type="text" id="signup-username" name="username" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="signup-password">Password *</label>
-                            <input type="password" id="signup-password" name="password" required>
-                             <small>Minimum 4 characters.</small>
-                        </div>
-                        <div class="form-group">
-                            <label for="signup-confirm-password">Confirm Password *</label>
-                            <input type="password" id="signup-confirm-password" name="confirmPassword" required>
-                        </div>
+                        <div class="form-group"><label for="signup-username">Username *</label><input type="text" id="signup-username" name="username" required></div>
+                        <div class="form-group"><label for="signup-password">Password *</label><input type="password" id="signup-password" name="password" required> <small>Minimum 4 characters.</small></div>
+                        <div class="form-group"><label for="signup-confirm-password">Confirm Password *</label><input type="password" id="signup-confirm-password" name="confirmPassword" required></div>
 
                         <div class="form-group">
                             <label for="signup-role">Register as: *</label>
                             <select id="signup-role" name="role" required>
                                 <option value="member">Member/Guest</option>
-                                <option value="employee">Employee</option>
-                            </select>
+                                </select>
                             <small id="admin-role-info" style="display: none; color: var(--secondary-color); margin-top: 5px;">Admin role is for initial setup.</small>
                         </div>
 
                         <div id="member-fields" style="display: none;">
                              <hr style="margin: 20px 0;">
-                             <p style="text-align: center; margin-bottom: 15px; color: var(--vt-grey);"><em>Member Details (Required for Members)</em></p>
-                             <div class="form-group">
-                                <label for="signup-fname">First Name *</label>
-                                <input type="text" id="signup-fname" name="fname"> </div>
-                             <div class="form-group">
-                                <label for="signup-lname">Last Name *</label>
-                                <input type="text" id="signup-lname" name="lname"> </div>
-                             <div class="form-group">
-                                <label for="signup-email">Email</label>
-                                <input type="email" id="signup-email" name="email">
-                             </div>
-                             <div class="form-group">
-                                <label for="signup-phone">Phone Number</label>
-                                <input type="tel" id="signup-phone" name="phone"> </div>
+                             <p style="text-align: center; margin-bottom: 15px; color: var(--vt-grey);"><em>Member Details (Required)</em></p>
+                             <div class="form-group"><label for="signup-fname">First Name *</label><input type="text" id="signup-fname" name="fname"></div>
+                             <div class="form-group"><label for="signup-lname">Last Name *</label><input type="text" id="signup-lname" name="lname"></div>
+                             <div class="form-group"><label for="signup-email">Email</label><input type="email" id="signup-email" name="email"></div>
+                             <div class="form-group"><label for="signup-phone">Phone Number</label><input type="tel" id="signup-phone" name="phone"></div>
                              <hr style="margin: 20px 0;">
                         </div>
+
                         <div id="signup-error" class="auth-error" style="display: none;"></div>
                         <button type="submit" class="btn btn-success btn-block">Sign Up</button>
                     </form>
@@ -101,7 +67,7 @@
                 <div id="dashboard-view" class="content">
                     <h2>Dashboard</h2>
                     <div id="dashboard-container" class="dashboard-grid">
-                        <div class="table-card" id="user-management-card" style="cursor: pointer;"><div class="card-icon"><i class="fas fa-users-cog"></i></div><div class="card-details"><h4>User Management</h4><p class="card-desc">View and manage user accounts</p></div></div>
+                        <div class="table-card" id="user-management-card" style="cursor: pointer;"><div class="card-icon"><i class="fas fa-users-cog"></i></div><div class="card-details"><h4>User Management</h4><p class="card-desc">View/Add Users & Admins</p></div></div>
                         <div id="dynamic-cards-placeholder" style="display: contents;"><div class="loading" style="grid-column: 1 / -1;"><i class="fas fa-spinner fa-spin"></i> Loading tables...</div></div>
                     </div>
                 </div> <div id="table-view" class="content" style="display: none;">
@@ -122,31 +88,22 @@
                     <div class="view-header">
                          <button id="back-to-dashboard-from-users-btn" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</button>
                          <h2>User Management</h2>
-                         <div> <button id="add-admin-btn" class="btn btn-success"><i class="fas fa-user-plus"></i> Add Admin</button> <button id="refresh-users-btn" class="btn btn-primary"><i class="fas fa-sync-alt"></i> Refresh</button> </div>
+                         <div> <button id="add-employee-btn" class="btn btn-info" style="background-color: #17a2b8;"><i class="fas fa-user-tie"></i> Add Employee</button>
+                            <button id="add-admin-btn" class="btn btn-success"><i class="fas fa-user-plus"></i> Add Admin</button>
+                            <button id="refresh-users-btn" class="btn btn-primary"><i class="fas fa-sync-alt"></i> Refresh</button>
+                        </div>
                     </div>
                     <div id="user-list-container" class="table-container">
-                        <div class="loading" style="display: none;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
-                        <table id="user-list-table" class="data-table-styled"><thead><tr><th>User ID</th><th>Username</th><th>Role</th><th>Created At</th></tr></thead><tbody></tbody></table>
+                       <div class="loading" style="display: none;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                       <table id="user-list-table" class="data-table-styled"><thead><tr><th>User ID</th><th>Username</th><th>Role</th><th>Created At</th></tr></thead><tbody></tbody></table>
                     </div>
                 </div> <div id="profile-edit-modal" class="modal"> </div>
                 <div id="plan-change-modal" class="modal"> </div>
                 <div id="tee-time-modal" class="modal"> </div>
                 <div id="equipment-rental-modal" class="modal"> </div>
                 <div id="account-modal" class="modal"><div class="modal-content"><div class="modal-header"><h2>Account Settings</h2><span class="close close-account-modal">&times;</span></div><div class="modal-body"><div id="account-details"><h3>Account Details</h3><p><strong>Username:</strong> <span id="account-username"></span></p><p><strong>Role:</strong> <span id="account-role"></span></p></div><hr style="margin: 20px 0;"><div id="change-password-section"><h3>Change Password</h3><form id="change-password-form"><div class="form-group"><label for="current-password">Current</label><input type="password" id="current-password" name="currentPassword" required></div><div class="form-group"><label for="new-password">New</label><input type="password" id="new-password" name="newPassword" required> <small>Min 4 chars.</small></div><div class="form-group"><label for="confirm-new-password">Confirm</label><input type="password" id="confirm-new-password" name="confirmNewPassword" required></div><div id="change-password-error" class="auth-error" style="display: none;"></div><button type="submit" class="btn btn-primary">Update Password</button></form></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary close-account-modal-btn close">Close</button></div></div></div>
-
-                <div id="add-admin-modal" class="modal">
-                    <div class="modal-content" style="max-width: 500px;">
-                        <div class="modal-header"><h2>Add New Admin User</h2><span class="close">&times;</span></div>
-                        <div class="modal-body">
-                            <form id="add-admin-form">
-                                <div class="form-group"><label for="add-admin-username">Username *</label><input type="text" id="add-admin-username" name="username" required></div>
-                                <div class="form-group"><label for="add-admin-password">Password *</label><input type="password" id="add-admin-password" name="password" required><small>Minimum 4 characters.</small></div>
-                                <div id="add-admin-error" class="auth-error" style="display: none;"></div>
-                            </form>
-                        </div>
-                        <div class="modal-footer"><button type="button" id="submit-new-admin" class="btn btn-success">Create Admin</button><button type="button" class="btn btn-danger close">Cancel</button></div>
-                    </div>
-                </div>
+                <div id="add-admin-modal" class="modal"><div class="modal-content" style="max-width: 500px;"><div class="modal-header"><h2>Add New Admin User</h2><span class="close">&times;</span></div><div class="modal-body"><form id="add-admin-form"><div class="form-group"><label for="add-admin-username">Username *</label><input type="text" id="add-admin-username" name="username" required></div><div class="form-group"><label for="add-admin-password">Password *</label><input type="password" id="add-admin-password" name="password" required><small>Minimum 4 characters.</small></div><div id="add-admin-error" class="auth-error" style="display: none;"></div></form></div><div class="modal-footer"><button type="button" id="submit-new-admin" class="btn btn-success">Create Admin</button><button type="button" class="btn btn-danger close">Cancel</button></div></div></div>
+                <div id="add-employee-modal" class="modal"><div class="modal-content" style="max-width: 550px;"><div class="modal-header"><h2>Add New Employee</h2><span class="close">&times;</span></div><div class="modal-body"><form id="add-employee-form"><div class="form-group"><label for="add-emp-username">Login Username *</label><input type="text" id="add-emp-username" name="username" required></div><div class="form-group"><label for="add-emp-password">Login Password *</label><input type="password" id="add-emp-password" name="password" required><small>Minimum 4 characters.</small></div><hr><div class="form-group"><label for="add-emp-fname">First Name *</label><input type="text" id="add-emp-fname" name="fname" required></div><div class="form-group"><label for="add-emp-lname">Last Name *</label><input type="text" id="add-emp-lname" name="lname" required></div><div class="form-group"><label for="add-emp-app-role">Application Role *</label><input type="text" id="add-emp-app-role" name="role" required placeholder="e.g., Manager, Pro Shop Staff"></div><div class="form-group"><label for="add-emp-email">Email</label><input type="email" id="add-emp-email" name="email"></div><div class="form-group"><label for="add-emp-phone">Phone Number</label><input type="tel" id="add-emp-phone" name="phone"></div><div id="add-employee-error" class="auth-error" style="display: none;"></div></form></div><div class="modal-footer"><button type="button" id="submit-new-employee" class="btn btn-success">Create Employee</button><button type="button" class="btn btn-danger close">Cancel</button></div></div></div>
 
             </div> </main>
     </div> <footer>

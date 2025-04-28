@@ -2,252 +2,414 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Golf Course Database Manager</title>
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Golf Course Database Manager</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
 </head>
 
 <body>
-  <header>
-    <h1>Golf Course Database Manager</h1>
-    <div id="user-status" class="user-status" style="display: none;">
-      <span id="username-display"></span>
-      <button id="account-btn" class="btn btn-secondary btn-sm" title="Account Settings">
-        <i class="fas fa-user-cog"></i> Account
-      </button>
-      <button id="statistics-btn" class="btn btn-secondary btn-sm" title="Statistics">
-        <i class="fas fa-chart-bar"></i> Statistics
-      </button>
-      <button id="logout-btn" class="btn btn-secondary btn-sm" title="Logout">
-        <i class="fas fa-sign-out-alt"></i> Logout
-      </button>
-    </div>
-  </header>
-
-  <div class="container">
-    <main>
-
-      <div id="auth-view" style="display: none;">
-        <div id="login-form-container" class="auth-container">
-          <h2>Login</h2>
-          <form id="login-form">
-            <div class="form-group">
-              <label for="login-username">Username</label>
-              <input type="text" id="login-username" name="username" required />
-            </div>
-            <div class="form-group">
-              <label for="login-password">Password</label>
-              <input type="password" id="login-password" name="password" required />
-            </div>
-            <div id="login-error" class="auth-error" style="display: none;"></div>
-            <button type="submit" class="btn btn-primary btn-block">Login</button>
-          </form>
-          <p class="auth-switch">
-            Don't have an account? <a href="#" id="show-signup">Sign Up</a>
-          </p>
+    <header>
+        <h1>Golf Course Database Manager</h1>
+        <div id="user-status" class="user-status" style="display: none;">
+            <span id="username-display"></span>
+            <button id="account-btn" class="btn btn-secondary btn-sm" title="Account Settings">
+                <i class="fas fa-user-cog"></i> Account
+            </button>
+            <button id="statistics-btn" class="btn btn-secondary btn-sm" title="Statistics">
+                <i class="fas fa-chart-bar"></i> Statistics
+            </button>
+            <button id="logout-btn" class="btn btn-secondary btn-sm" title="Logout">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
         </div>
+    </header>
 
-        <div id="signup-form-container" class="auth-container" style="display: none;">
-          <h2>Sign Up</h2>
-          <form id="signup-form">
-            <div class="form-group">
-              <label for="signup-username">Username *</label>
-              <input type="text" id="signup-username" name="username" required />
-            </div>
-            <div class="form-group">
-              <label for="signup-password">Password *</label>
-              <input type="password" id="signup-password" name="password" required />
-              <small>Minimum 4 characters.</small>
-            </div>
-            <div class="form-group">
-              <label for="signup-confirm-password">Confirm Password *</label>
-              <input type="password" id="signup-confirm-password" name="confirmPassword" required />
-            </div>
+    <div class="container">
+        <main>
 
-            <div class="form-group">
-              <label for="signup-role">Register as: *</label>
-              <select id="signup-role" name="role" required>
-                <option value="member">Member/Guest</option>
-              </select>
-              <small id="admin-role-info" style="display: none; color: var(--secondary-color); margin-top: 5px;">
-                Admin role is for initial setup.
-              </small>
-            </div>
-
-            <div id="member-fields" style="display: none;">
-              <hr style="margin: 20px 0;" />
-              <p style="text-align: center; margin-bottom: 15px; color: var(--vt-grey);">
-                <em>Member Details (Required)</em>
-              </p>
-              <div class="form-group">
-                <label for="signup-fname">First Name *</label>
-                <input type="text" id="signup-fname" name="fname" />
-              </div>
-              <div class="form-group">
-                <label for="signup-lname">Last Name *</label>
-                <input type="text" id="signup-lname" name="lname" />
-              </div>
-              <div class="form-group">
-                <label for="signup-email">Email</label>
-                <input type="email" id="signup-email" name="email" />
-              </div>
-              <div class="form-group">
-                <label for="signup-phone">Phone Number</label>
-                <input type="tel" id="signup-phone" name="phone" />
-              </div>
-              <hr style="margin: 20px 0;" />
-            </div>
-
-            <div id="signup-error" class="auth-error" style="display: none;"></div>
-            <button type="submit" class="btn btn-success btn-block">Sign Up</button>
-          </form>
-          <p class="auth-switch">
-            Already have an account? <a href="#" id="show-login">Login</a>
-          </p>
-        </div>
-      </div> <div id="app-view" style="display: none;">
-
-        <div id="dashboard-view" class="content">
-          <h2>Dashboard</h2>
-          <div id="dashboard-container" class="dashboard-grid">
-            <div class="table-card" id="user-management-card" style="cursor: pointer;">
-              <div class="card-icon"><i class="fas fa-users-cog"></i></div>
-              <div class="card-details">
-                <h4>User Management</h4>
-                <p class="card-desc">View/Add Users & Admins</p>
-              </div>
-            </div>
-            <div id="dynamic-cards-placeholder" style="display: contents;">
-              <div class="loading" style="grid-column: 1 / -1;">
-                <i class="fas fa-spinner fa-spin"></i> Loading tables...
-              </div>
-            </div>
-          </div>
-        </div><div id="table-view" class="content" style="display: none;">
-          <div class="table-actions">
-            <button id="back-to-dashboard-btn" class="btn btn-secondary">
-              <i class="fas fa-arrow-left"></i> Back
-            </button>
-            <h2 id="selected-table">Select a table</h2>
-            <button id="add-record-btn" class="btn btn-primary" disabled>
-              <i class="fas fa-plus"></i> Add Record
-            </button>
-          </div>
-          <div class="table-container">
-            <table id="data-table">
-              <thead><tr></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-
-          <div id="add-record-modal" class="modal">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h2 id="modal-title">Add Record</h2>
-                <span class="close">&times;</span>
-              </div>
-              <div class="modal-body">
-                <form id="add-record-form"></form>
-              </div>
-              <div class="modal-footer">
-                <button type="button" id="submit-record" class="btn btn-success">Submit</button>
-                <button type="button" id="cancel-record" class="btn btn-danger close">Cancel</button>
-              </div>
-            </div>
-          </div>
-
-          <div id="notification" class="notification">
-            <span id="notification-message"></span>
-          </div>
-        </div><div id="statistics-view" class="content" style="display: none;">
-          <div class="view-header">
-            <button id="back-to-dashboard-from-stats-btn" class="btn btn-secondary">
-              <i class="fas fa-arrow-left"></i> Back
-            </button>
-            <h2>Golf Course Statistics</h2>
-            <button id="refresh-stats-btn" class="btn btn-primary">
-              <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-          </div>
-          <div class="stats-container">
-            <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
-            <div class="stats-grid" style="display: none;">
-              <div class="stats-card"><h3><i class="fas fa-table"></i> Record Counts</h3><div class="stats-table-counts"></div></div>
-              <div class="stats-card"><h3><i class="fas fa-users"></i> Members by Plan</h3><div class="stats-membership-chart"></div></div>
-              <div class="stats-card"><h3><i class="fas fa-calendar-check"></i> Tee Time Status</h3><div class="stats-teetime-chart"></div></div>
-              <div class="stats-card"><h3><i class="fas fa-golf-ball"></i> Equipment</h3><div class="stats-equipment-chart"></div></div>
-            </div>
-          </div>
-        </div><div id="employee-view" class="content" style="display: none;">
-          <div class="view-header">
-            <h2>Employee Portal</h2>
-            <button id="refresh-employee-data-btn" class="btn btn-primary">
-              <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-          </div>
-          <div class="employee-container">
-            <div id="employee-dashboard-container" class="dashboard-grid">
-              <div class="loading">
-                <i class="fas fa-spinner fa-spin"></i> Loading...
-              </div>
-            </div>
-          </div>
-        </div><div id="member-view" class="content" style="display: none;">
-          <div class="view-header"><h2>Member Portal</h2><button id="refresh-member-data-btn" class="btn btn-primary"><i class="fas fa-sync-alt"></i> Refresh</button></div>
-          <div class="member-container"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div><div class="member-dashboard-grid"><div class="member-card"><div class="card-header"><h3><i class="fas fa-user-circle"></i> Profile</h3><button id="edit-profile-btn" class="btn btn-sm btn-primary"><i class="fas fa-edit"></i> Edit</button></div><div id="member-profile-content"></div></div><div class="member-card"><div class="card-header"><h3><i class="fas fa-id-card"></i> Membership</h3>
-            </div><div id="membership-content"></div></div><div class="member-card wide-card"><div class="card-header"><h3><i class="fas fa-calendar-alt"></i> Tee Times</h3><button id="book-tee-time-btn" class="btn btn-sm btn-success"><i class="fas fa-plus"></i> Book</button></div><div class="tee-times-content"><div class="tee-times-tabs"><button class="tab-btn active" data-tab="upcoming">Upcoming</button><button class="tab-btn" data-tab="available">Available</button><button class="tab-btn" data-tab="history">History</button></div><div class="tee-times-tab-content"></div></div></div><div class="member-card wide-card"><div class="card-header"><h3><i class="fas fa-golf-ball"></i> Equipment</h3><button id="rent-equipment-btn" class="btn btn-sm btn-success"><i class="fas fa-shopping-cart"></i> Rent</button></div><div class="equipment-content"><div class="equipment-tabs"><button class="tab-btn active" data-tab="available-equipment">Available</button><button class="tab-btn" data-tab="my-rentals">My Rentals</button></div><div class="equipment-tab-content"></div></div></div></div></div>
-        </div><div id="user-management-view" class="content" style="display: none;">
-          <div class="view-header"><button id="back-to-dashboard-from-users-btn" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</button><h2>User Management</h2><div><button id="add-employee-btn" class="btn btn-info" style="background-color: #17a2b8;"><i class="fas fa-user-tie"></i> Add Employee</button> <button id="add-admin-btn" class="btn btn-success"><i class="fas fa-user-plus"></i> Add Admin</button> <button id="refresh-users-btn" class="btn btn-primary"><i class="fas fa-sync-alt"></i> Refresh</button></div></div>
-          <div id="user-list-container" class="table-container"><div class="loading" style="display: none;"><i class="fas fa-spinner fa-spin"></i> Loading...</div><table id="user-list-table" class="data-table-styled"><thead><tr><th>User ID</th><th>Username</th><th>Role</th><th>Created At</th></tr></thead><tbody></tbody></table></div>
-        </div><div id="profile-edit-modal" class="modal">
-          <div class="modal-content">
-            <div class="modal-header"><h2>Edit Profile</h2><span id="close-profile-modal" class="close">&times;</span></div>
-            <div class="modal-body"><form id="profile-edit-form"></form></div>
-            <div class="modal-footer"><button id="save-profile-btn" class="btn btn-primary">Save</button><button id="cancel-profile-edit-btn" class="btn btn-secondary close">Cancel</button></div>
-          </div>
-        </div>
-
-        <div id="plan-change-modal" class="modal"></div>
-        <div id="tee-time-modal" class="modal"></div>
-        <div id="equipment-rental-modal" class="modal"></div>
-
-        <div id="account-modal" class="modal"><div class="modal-content"><div class="modal-header"><h2>Account Settings</h2><span class="close close-account-modal">&times;</span></div><div class="modal-body"><div id="account-details"><h3>Details</h3><p><strong>Username:</strong> <span id="account-username"></span></p><p><strong>Role:</strong> <span id="account-role"></span></p></div><hr><div id="change-password-section"><h3>Change Password</h3><form id="change-password-form"><div class="form-group"><label for="current-password">Current</label><input type="password" id="current-password" name="currentPassword" required></div><div class="form-group"><label for="new-password">New</label><input type="password" id="new-password" name="newPassword" required><small>Min 4 chars.</small></div><div class="form-group"><label for="confirm-new-password">Confirm</label><input type="password" id="confirm-new-password" name="confirmNewPassword" required></div><div id="change-password-error" class="auth-error" style="display: none;"></div><button type="submit" class="btn btn-primary">Update Password</button></form></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary close-account-modal-btn close">Close</button></div></div></div>
-
-        <div id="add-admin-modal" class="modal"><div class="modal-content" style="max-width: 500px;"><div class="modal-header"><h2>Add New Admin User</h2><span class="close">&times;</span></div><div class="modal-body"><form id="add-admin-form"><div class="form-group"><label for="add-admin-username">Username *</label><input type="text" id="add-admin-username" name="username" required></div><div class="form-group"><label for="add-admin-password">Password *</label><input type="password" id="add-admin-password" name="password" required><small>Minimum 4 characters.</small></div><div id="add-admin-error" class="auth-error" style="display: none;"></div></form></div><div class="modal-footer"><button type="button" id="submit-new-admin" class="btn btn-success">Create Admin</button><button type="button" class="btn btn-danger close">Cancel</button></div></div></div>
-
-        <div id="add-employee-modal" class="modal"><div class="modal-content" style="max-width: 550px;"><div class="modal-header"><h2>Add New Employee</h2><span class="close">&times;</span></div><div class="modal-body"><form id="add-employee-form"><div class="form-group"><label for="add-emp-username">Login Username *</label><input type="text" id="add-emp-username" name="username" required></div><div class="form-group"><label for="add-emp-password">Login Password *</label><input type="password" id="add-emp-password" name="password" required><small>Minimum 4 characters.</small></div><hr><div class="form-group"><label for="add-emp-fname">First Name *</label><input type="text" id="add-emp-fname" name="fname" required></div><div class="form-group"><label for="add-emp-lname">Last Name *</label><input type="text" id="add-emp-lname" name="lname" required></div><div class="form-group"><label for="add-emp-app-role">Application Role *</label><input type="text" id="add-emp-app-role" name="role" required placeholder="e.g., Manager, Pro Shop Staff"></div><div class="form-group"><label for="add-emp-email">Email</label><input type="email" id="add-emp-email" name="email"></div><div class="form-group"><label for="add-emp-phone">Phone Number</label><input type="tel" id="add-emp-phone" name="phone"></div><div id="add-employee-error" class="auth-error" style="display: none;"></div></form></div><div class="modal-footer"><button type="button" id="submit-new-employee" class="btn btn-success">Create Employee</button><button type="button" class="btn btn-danger close">Cancel</button></div></div></div>
-
-        <div id="assign-plan-modal" class="modal">
-            <div class="modal-content" style="max-width: 500px;">
-                <div class="modal-header">
-                    <h2>Assign Membership Plan</h2>
-                    <span class="close">&times;</span>
-                </div>
-                <div class="modal-body">
-                    <p id="assign-plan-member-info" style="margin-bottom: 15px; font-weight: 500;"></p>
-                    <form id="assign-plan-form">
+            <div id="auth-view" style="display: none;">
+                <div id="login-form-container" class="auth-container">
+                    <h2>Login</h2>
+                    <form id="login-form">
                         <div class="form-group">
-                            <label for="assign-plan-select">Select Plan:</label>
-                            <select id="assign-plan-select" name="Plan_id" required>
-                                <option value="">-- Loading Plans --</option>
-                                </select>
+                            <label for="login-username">Username</label>
+                            <input type="text" id="login-username" name="username" required />
                         </div>
-                        <div id="assign-plan-error" class="auth-error" style="display: none;"></div>
+                        <div class="form-group">
+                            <label for="login-password">Password</label>
+                            <input type="password" id="login-password" name="password" required />
+                        </div>
+                        <div id="login-error" class="auth-error" style="display: none;"></div>
+                        <button type="submit" class="btn btn-primary btn-block">Login</button>
                     </form>
+                    <p class="auth-switch">
+                        Don't have an account? <a href="#" id="show-signup">Sign Up</a>
+                    </p>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" id="submit-assign-plan" class="btn btn-success">Assign Plan</button>
-                    <button type="button" id="cancel-assign-plan" class="btn btn-danger close">Cancel</button> </div>
-            </div>
-        </div>
-        </div> </main>
-  </div> <footer>
-    <p>&copy; 2025 Golf Course Database Manager</p>
-  </footer>
 
-  <script type="module" src="js/app.js"></script>
+                <div id="signup-form-container" class="auth-container" style="display: none;">
+                    <h2>Sign Up</h2>
+                    <form id="signup-form">
+                        <div class="form-group">
+                            <label for="signup-username">Username *</label>
+                            <input type="text" id="signup-username" name="username" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="signup-password">Password *</label>
+                            <input type="password" id="signup-password" name="password" required />
+                            <small>Minimum 4 characters.</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="signup-confirm-password">Confirm Password *</label>
+                            <input type="password" id="signup-confirm-password" name="confirmPassword" required />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="signup-role">Register as: *</label>
+                            <select id="signup-role" name="role" required>
+                                <option value="member">Member/Guest</option>
+                            </select>
+                            <small id="admin-role-info"
+                                style="display: none; color: var(--secondary-color); margin-top: 5px;">
+                                Admin role is for initial setup.
+                            </small>
+                        </div>
+
+                        <div id="member-fields" style="display: none;">
+                            <hr style="margin: 20px 0;" />
+                            <p style="text-align: center; margin-bottom: 15px; color: var(--vt-grey);">
+                                <em>Member Details (Required)</em>
+                            </p>
+                            <div class="form-group">
+                                <label for="signup-fname">First Name *</label>
+                                <input type="text" id="signup-fname" name="fname" />
+                            </div>
+                            <div class="form-group">
+                                <label for="signup-lname">Last Name *</label>
+                                <input type="text" id="signup-lname" name="lname" />
+                            </div>
+                            <div class="form-group">
+                                <label for="signup-email">Email</label>
+                                <input type="email" id="signup-email" name="email" />
+                            </div>
+                            <div class="form-group">
+                                <label for="signup-phone">Phone Number</label>
+                                <input type="tel" id="signup-phone" name="phone" />
+                            </div>
+                            <hr style="margin: 20px 0;" />
+                        </div>
+
+                        <div id="signup-error" class="auth-error" style="display: none;"></div>
+                        <button type="submit" class="btn btn-success btn-block">Sign Up</button>
+                    </form>
+                    <p class="auth-switch">
+                        Already have an account? <a href="#" id="show-login">Login</a>
+                    </p>
+                </div>
+            </div>
+            <div id="app-view" style="display: none;">
+
+                <div id="dashboard-view" class="content">
+                    <h2>Dashboard</h2>
+                    <div id="dashboard-container" class="dashboard-grid">
+                        <div class="table-card" id="user-management-card" style="cursor: pointer;">
+                            <div class="card-icon"><i class="fas fa-users-cog"></i></div>
+                            <div class="card-details">
+                                <h4>User Management</h4>
+                                <p class="card-desc">View/Add Users & Admins</p>
+                            </div>
+                        </div>
+                        <div id="dynamic-cards-placeholder" style="display: contents;">
+                            <div class="loading" style="grid-column: 1 / -1;">
+                                <i class="fas fa-spinner fa-spin"></i> Loading tables...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="table-view" class="content" style="display: none;">
+                    <div class="table-actions">
+                        <button id="back-to-dashboard-btn" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                        <h2 id="selected-table">Select a table</h2>
+                        <button id="add-record-btn" class="btn btn-primary" disabled>
+                            <i class="fas fa-plus"></i> Add Record
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table id="data-table">
+                            <thead>
+                                <tr></tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+
+                    <div id="add-record-modal" class="modal">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h2 id="modal-title">Add Record</h2>
+                                <span class="close">&times;</span>
+                            </div>
+                            <div class="modal-body">
+                                <form id="add-record-form"></form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" id="submit-record" class="btn btn-success">Submit</button>
+                                <button type="button" id="cancel-record" class="btn btn-danger close">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="notification" class="notification">
+                        <span id="notification-message"></span>
+                    </div>
+                </div>
+                <div id="statistics-view" class="content" style="display: none;">
+                    <div class="view-header">
+                        <button id="back-to-dashboard-from-stats-btn" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                        <h2>Golf Course Statistics</h2>
+                        <button id="refresh-stats-btn" class="btn btn-primary">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="stats-container">
+                        <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                        <div class="stats-grid" style="display: none;"></div>
+                    </div>
+                </div>
+                <div id="employee-view" class="content" style="display: none;">
+                    <div class="view-header">
+                        <h2>Employee Portal</h2>
+                        <button id="refresh-employee-data-btn" class="btn btn-primary">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="employee-container">
+                        <div id="employee-dashboard-container" class="dashboard-grid">
+                            <div class="loading">
+                                <i class="fas fa-spinner fa-spin"></i> Loading...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="member-view" class="content" style="display: none;">
+                    <div class="view-header">
+                        <h2>Member Portal</h2><button id="refresh-member-data-btn" class="btn btn-primary"><i
+                                class="fas fa-sync-alt"></i> Refresh</button>
+                    </div>
+                    <div class="member-container">
+                        <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                        <div class="member-dashboard-grid">
+                            <div class="member-card">
+                                <div class="card-header">
+                                    <h3><i class="fas fa-user-circle"></i> Profile</h3><button id="edit-profile-btn"
+                                        class="btn btn-sm btn-primary"><i class="fas fa-edit"></i> Edit</button>
+                                </div>
+                                <div id="member-profile-content"></div>
+                            </div>
+                            <div class="member-card">
+                                <div class="card-header">
+                                    <h3><i class="fas fa-id-card"></i> Membership</h3>
+                                </div>
+                                <div id="membership-content"></div>
+                            </div>
+                            <div class="member-card wide-card">
+                                <div class="card-header">
+                                    <h3><i class="fas fa-calendar-alt"></i> Tee Times</h3><button id="book-tee-time-btn"
+                                        class="btn btn-sm btn-success"><i class="fas fa-plus"></i> Book</button>
+                                </div>
+                                <div class="tee-times-content">
+                                    <div class="tee-times-tabs"><button class="tab-btn active"
+                                            data-tab="upcoming">Upcoming</button><button class="tab-btn"
+                                            data-tab="available">Available</button><button class="tab-btn"
+                                            data-tab="history">History</button></div>
+                                    <div class="tee-times-tab-content"></div>
+                                </div>
+                            </div>
+                            <div class="member-card wide-card">
+                                <div class="card-header">
+                                    <h3><i class="fas fa-golf-ball"></i> Equipment</h3><button id="rent-equipment-btn"
+                                        class="btn btn-sm btn-success"><i class="fas fa-shopping-cart"></i>
+                                        Rent</button>
+                                </div>
+                                <div class="equipment-content">
+                                    <div class="equipment-tabs"><button class="tab-btn active"
+                                            data-tab="available-equipment">Available</button><button class="tab-btn"
+                                            data-tab="my-rentals">My Rentals</button></div>
+                                    <div class="equipment-tab-content"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="user-management-view" class="content" style="display: none;">
+                    <div class="view-header"><button id="back-to-dashboard-from-users-btn" class="btn btn-secondary"><i
+                                class="fas fa-arrow-left"></i> Back</button>
+                        <h2>User Management</h2>
+                        <div><button id="add-employee-btn" class="btn btn-info" style="background-color: #17a2b8;"><i
+                                    class="fas fa-user-tie"></i> Add Employee</button> <button id="add-admin-btn"
+                                class="btn btn-success"><i class="fas fa-user-plus"></i> Add Admin</button> <button
+                                id="refresh-users-btn" class="btn btn-primary"><i class="fas fa-sync-alt"></i>
+                                Refresh</button></div>
+                    </div>
+                    <div id="user-list-container" class="table-container">
+                        <div class="loading" style="display: none;"><i class="fas fa-spinner fa-spin"></i> Loading...
+                        </div>
+                        <table id="user-list-table" class="data-table-styled">
+                            <thead>
+                                <tr>
+                                    <th>User ID</th>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Created At</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="profile-edit-modal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>Edit Profile</h2><span id="close-profile-modal" class="close">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <form id="profile-edit-form"></form>
+                        </div>
+                        <div class="modal-footer"><button id="save-profile-btn"
+                                class="btn btn-primary">Save</button><button id="cancel-profile-edit-btn"
+                                class="btn btn-secondary close">Cancel</button></div>
+                    </div>
+                </div>
+
+                <div id="plan-change-modal" class="modal"></div>
+                <div id="tee-time-modal" class="modal"></div>
+                <div id="equipment-rental-modal" class="modal"></div>
+
+                <div id="account-modal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>Account Settings</h2><span class="close close-account-modal">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <div id="account-details">
+                                <h3>Details</h3>
+                                <p><strong>Username:</strong> <span id="account-username"></span></p>
+                                <p><strong>Role:</strong> <span id="account-role"></span></p>
+                            </div>
+                            <hr>
+                            <div id="change-password-section">
+                                <h3>Change Password</h3>
+                                <form id="change-password-form">
+                                    <div class="form-group"><label for="current-password">Current</label><input
+                                            type="password" id="current-password" name="currentPassword" required></div>
+                                    <div class="form-group"><label for="new-password">New</label><input type="password"
+                                            id="new-password" name="newPassword" required><small>Min 4 chars.</small>
+                                    </div>
+                                    <div class="form-group"><label for="confirm-new-password">Confirm</label><input
+                                            type="password" id="confirm-new-password" name="confirmNewPassword"
+                                            required></div>
+                                    <div id="change-password-error" class="auth-error" style="display: none;"></div>
+                                    <button type="submit" class="btn btn-primary">Update Password</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="modal-footer"><button type="button"
+                                class="btn btn-secondary close-account-modal-btn close">Close</button></div>
+                    </div>
+                </div>
+
+                <div id="add-admin-modal" class="modal">
+                    <div class="modal-content" style="max-width: 500px;">
+                        <div class="modal-header">
+                            <h2>Add New Admin User</h2><span class="close">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <form id="add-admin-form">
+                                <div class="form-group"><label for="add-admin-username">Username *</label><input
+                                        type="text" id="add-admin-username" name="username" required></div>
+                                <div class="form-group"><label for="add-admin-password">Password *</label><input
+                                        type="password" id="add-admin-password" name="password" required><small>Minimum
+                                        4 characters.</small></div>
+                                <div id="add-admin-error" class="auth-error" style="display: none;"></div>
+                            </form>
+                        </div>
+                        <div class="modal-footer"><button type="button" id="submit-new-admin"
+                                class="btn btn-success">Create Admin</button><button type="button"
+                                class="btn btn-danger close">Cancel</button></div>
+                    </div>
+                </div>
+
+                <div id="add-employee-modal" class="modal">
+                    <div class="modal-content" style="max-width: 550px;">
+                        <div class="modal-header">
+                            <h2>Add New Employee</h2><span class="close">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <form id="add-employee-form">
+                                <div class="form-group"><label for="add-emp-username">Login Username *</label><input
+                                        type="text" id="add-emp-username" name="username" required></div>
+                                <div class="form-group"><label for="add-emp-password">Login Password *</label><input
+                                        type="password" id="add-emp-password" name="password" required><small>Minimum 4
+                                        characters.</small></div>
+                                <hr>
+                                <div class="form-group"><label for="add-emp-fname">First Name *</label><input
+                                        type="text" id="add-emp-fname" name="fname" required></div>
+                                <div class="form-group"><label for="add-emp-lname">Last Name *</label><input type="text"
+                                        id="add-emp-lname" name="lname" required></div>
+                                <div class="form-group"><label for="add-emp-app-role">Application Role *</label><input
+                                        type="text" id="add-emp-app-role" name="role" required
+                                        placeholder="e.g., Manager, Pro Shop Staff"></div>
+                                <div class="form-group"><label for="add-emp-email">Email</label><input type="email"
+                                        id="add-emp-email" name="email"></div>
+                                <div class="form-group"><label for="add-emp-phone">Phone Number</label><input type="tel"
+                                        id="add-emp-phone" name="phone"></div>
+                                <div id="add-employee-error" class="auth-error" style="display: none;"></div>
+                            </form>
+                        </div>
+                        <div class="modal-footer"><button type="button" id="submit-new-employee"
+                                class="btn btn-success">Create Employee</button><button type="button"
+                                class="btn btn-danger close">Cancel</button></div>
+                    </div>
+                </div>
+
+                <div id="assign-plan-modal" class="modal">
+                    <div class="modal-content" style="max-width: 500px;">
+                        <div class="modal-header">
+                            <h2>Assign Membership Plan</h2>
+                            <span class="close">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <p id="assign-plan-member-info" style="margin-bottom: 15px; font-weight: 500;"></p>
+                            <form id="assign-plan-form">
+                                <div class="form-group">
+                                    <label for="assign-plan-select">Select Plan:</label>
+                                    <select id="assign-plan-select" name="Plan_id" required>
+                                        <option value="">-- Loading Plans --</option>
+                                    </select>
+                                </div>
+                                <div id="assign-plan-error" class="auth-error" style="display: none;"></div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" id="submit-assign-plan" class="btn btn-success">Assign Plan</button>
+                            <button type="button" id="cancel-assign-plan" class="btn btn-danger close">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <footer>
+        <p>&copy; 2025 Golf Course Database Manager</p>
+    </footer>
+
+    <script type="module" src="js/app.js"></script>
 </body>
+
 </html>

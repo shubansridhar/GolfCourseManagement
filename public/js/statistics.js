@@ -5,7 +5,8 @@ import { Chart, registerables } from 'https://cdn.jsdelivr.net/npm/chart.js@3.9.
 import { authenticatedFetch } from './auth.js';
 import { showNotification } from './views.js';
 
-let chartTableCounts, chartMembersByPlan, chartTeeTimeStatus, chartEquipmentAvailability;
+// store references to Chart instances for cleanup
+let chartInstances = {};
 
 const API_BASE_URL = '/api';
 
@@ -29,71 +30,58 @@ async function loadStatisticsData() {
         const response = await authenticatedFetch(`${API_BASE_URL}/statistics`);
         if (!response.ok) throw new Error('Failed to fetch statistics');
 
-        const { tableCounts, membersByPlan, teeTimeStatus, equipmentAvailability } = await response.json();
+        // Load all metrics from server
+        const stats = await response.json();
 
-        // Destroy old charts if they exist
-        if (chartTableCounts) chartTableCounts.destroy();
-        if (chartMembersByPlan) chartMembersByPlan.destroy();
-        if (chartTeeTimeStatus) chartTeeTimeStatus.destroy();
-        if (chartEquipmentAvailability) chartEquipmentAvailability.destroy();
-
-        // Record Counts Chart
-        const countsDiv = container.querySelector('.stats-table-counts');
-        countsDiv.innerHTML = '<canvas id="chart-record-counts"></canvas>';
-        const ctx1 = document.getElementById('chart-record-counts').getContext('2d');
-        chartTableCounts = new Chart(ctx1, {
-            type: 'bar',
-            data: {
-                labels: Object.keys(tableCounts),
-                datasets: [{ label: 'Records', data: Object.values(tableCounts), backgroundColor: 'rgba(54, 162, 235, 0.5)' }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-
-        // Membership by Plan Pie Chart
-        const planDiv = container.querySelector('.stats-membership-chart');
-        planDiv.innerHTML = '<canvas id="chart-membership-plan"></canvas>';
-        const ctx2 = document.getElementById('chart-membership-plan').getContext('2d');
-        chartMembersByPlan = new Chart(ctx2, {
-            type: 'pie',
-            data: {
-                labels: membersByPlan.map(i => i.Plan_type),
-                datasets: [{ data: membersByPlan.map(i => i.count), backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'] }]
-            },
-            options: { responsive: true }
-        });
-
-        // Tee Time Status Doughnut Chart
-        const teeDiv = container.querySelector('.stats-teetime-chart');
-        teeDiv.innerHTML = '<canvas id="chart-tee-status"></canvas>';
-        const ctx3 = document.getElementById('chart-tee-status').getContext('2d');
-        chartTeeTimeStatus = new Chart(ctx3, {
-            type: 'doughnut',
-            data: {
-                labels: teeTimeStatus.map(i => i.Status),
-                datasets: [{ data: teeTimeStatus.map(i => i.count), backgroundColor: ['#4BC0C0', '#FF9F40', '#9966FF'] }]
-            },
-            options: { responsive: true }
-        });
-
-        // Equipment Availability Bar Chart
-        const equipDiv = container.querySelector('.stats-equipment-chart');
-        equipDiv.innerHTML = '<canvas id="chart-equipment"></canvas>';
-        const ctx4 = document.getElementById('chart-equipment').getContext('2d');
-        chartEquipmentAvailability = new Chart(ctx4, {
-            type: 'bar',
-            data: {
-                labels: equipmentAvailability.map(i => i.Type),
-                datasets: [
-                    { label: 'Available', data: equipmentAvailability.map(i => i.available), backgroundColor: 'rgba(75, 192, 192, 0.5)' },
-                    { label: 'Total', data: equipmentAvailability.map(i => i.total), backgroundColor: 'rgba(153, 102, 255, 0.5)' }
-                ]
-            },
-            options: {
-                responsive: true,
-                scales: { y: { beginAtZero: true } }
+        // Destroy old chart instances
+        Object.values(chartInstances).forEach(c => c.destroy());
+        chartInstances = {};
+        // Clear existing cards
+        const grid = container.querySelector('.stats-grid');
+        grid.innerHTML = '';
+        // Configuration for each metric
+        const chartConfigs = {
+            usersByRole: { title: 'Users by Role', type: 'pie', icon: 'fas fa-user-tag' },
+            avgAccountAge: { title: 'Avg Account Age (days)', type: 'bar', icon: 'fas fa-hourglass-half' },
+            totalPlans: { title: 'Total Plans', type: 'bar', icon: 'fas fa-list-alt' },
+            coursesByStatus: { title: 'Courses by Status', type: 'bar', icon: 'fas fa-golf-ball' },
+            holesByPar: { title: 'Holes by Par', type: 'bar', icon: 'fas fa-hashtag' },
+            bookingsToday: { title: 'Bookings Today', type: 'bar', icon: 'fas fa-calendar-day' },
+            upcomingBookings: { title: 'Upcoming Bookings', type: 'bar', icon: 'fas fa-calendar-plus' },
+            avgAvailSlots: { title: 'Avg Available Slots', type: 'bar', icon: 'fas fa-th-list' },
+            rentalsThisMonth: { title: 'Rentals This Month', type: 'bar', icon: 'fas fa-shopping-cart' },
+            pendingReturns: { title: 'Pending Returns', type: 'bar', icon: 'fas fa-box-open' },
+            myUpcomingTeeTimes: { title: 'My Upcoming Tee Times', type: 'bar', icon: 'fas fa-calendar-check' },
+            myPastTeeTimes: { title: 'My Past Tee Times', type: 'bar', icon: 'fas fa-history' },
+            myActiveRentals: { title: 'My Active Rentals', type: 'bar', icon: 'fas fa-warehouse' },
+            myReturnedRentals: { title: 'My Returned Rentals', type: 'bar', icon: 'fas fa-undo-alt' },
+            myAvgRentalDuration: { title: 'My Avg Rental Duration (days)', type: 'bar', icon: 'fas fa-hourglass-end' }
+        };
+        // Dynamically render each metric card and chart
+        for (const key of Object.keys(chartConfigs)) {
+            const cfg = chartConfigs[key];
+            const dataRows = stats[key] || [];
+            // build card
+            const card = document.createElement('div'); card.className = 'stats-card';
+            const title = document.createElement('h3'); title.innerHTML = `<i class="${cfg.icon}"></i> ${cfg.title}`; card.appendChild(title);
+            const canvas = document.createElement('canvas'); canvas.id = `chart-${key}`; card.appendChild(canvas);
+            grid.appendChild(card);
+            // map rows to labels/values
+            let labels = [], values = [];
+            if (dataRows.length > 1 && dataRows[0].label !== undefined) {
+                labels = dataRows.map(r => r.label);
+                values = dataRows.map(r => r.value);
+            } else if (dataRows.length === 1) {
+                labels = [cfg.title];
+                values = [dataRows[0].value];
             }
-        });
+            const ctx = canvas.getContext('2d');
+            chartInstances[key] = new Chart(ctx, {
+                type: cfg.type,
+                data: { labels, datasets: [{ label: cfg.title, data: values, backgroundColor: 'rgba(54, 162, 235, 0.5)' }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
 
         // Hide loading, show stats grid
         if (loading) loading.style.display = 'none';

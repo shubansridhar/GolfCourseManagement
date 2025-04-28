@@ -137,8 +137,8 @@ app.post('/api/admin/employees', async (req, res, next) => {
 
 // 1. MEMBER_TEE_TIME → show member name instead of user_id
 app.get('/api/tables/MEMBER_TEE_TIME', authenticateToken, async (req, res, next) => {
-  try {
-    const [rows] = await dbPool.query(`
+    try {
+        const [rows] = await dbPool.query(`
       SELECT
         mtt.Tee_time_id          AS Tee_time_id,
         mtt.user_id              AS user_id,
@@ -152,37 +152,37 @@ app.get('/api/tables/MEMBER_TEE_TIME', authenticateToken, async (req, res, next)
       JOIN TEE_TIME tt
         ON mtt.Tee_time_id = tt.Tee_time_id
     `);
-    res.json(rows);
-  } catch (err) {
-    next(err);
-  }
+        res.json(rows);
+    } catch (err) {
+        next(err);
+    }
 });
 
-// Return a custom “structure” for MEMBER_TEE_TIME so the client will render MemberName
+// Return a custom "structure" for MEMBER_TEE_TIME so the client will render MemberName
 app.get('/api/tables/MEMBER_TEE_TIME/structure', authenticateToken, async (req, res, next) => {
-  try {
-    // Fetch the real describe info
-    const [orig] = await dbPool.query('DESCRIBE `MEMBER_TEE_TIME`');
+    try {
+        // Fetch the real describe info
+        const [orig] = await dbPool.query('DESCRIBE `MEMBER_TEE_TIME`');
 
-    // Remove the user_id column (we’ll replace it with MemberName)
-    const filtered = orig.filter(col => col.Field !== 'user_id');
+        // Remove the user_id column (we'll replace it with MemberName)
+        const filtered = orig.filter(col => col.Field !== 'user_id');
 
-    // Prepend our MemberName column
-    const custom = [
-      { Field: 'MemberName', Type: 'varchar(255)', Null: 'YES', Key: '', Default: null, Extra: '' },
-      ...filtered
-    ];
+        // Prepend our MemberName column
+        const custom = [
+            { Field: 'MemberName', Type: 'varchar(255)', Null: 'YES', Key: '', Default: null, Extra: '' },
+            ...filtered
+        ];
 
-    res.json(custom);
-  } catch (err) {
-    next(err);
-  }
+        res.json(custom);
+    } catch (err) {
+        next(err);
+    }
 });
 
 // 2. EQUIPMENT_RENTAL → show username instead of user_id
 app.get('/api/tables/EQUIPMENT_RENTAL', authenticateToken, async (req, res, next) => {
-  try {
-    const [rows] = await dbPool.query(`
+    try {
+        const [rows] = await dbPool.query(`
       SELECT
         er.Rental_id             AS Rental_id,
         er.user_id               AS user_id,
@@ -195,34 +195,34 @@ app.get('/api/tables/EQUIPMENT_RENTAL', authenticateToken, async (req, res, next
       JOIN users u
         ON er.user_id = u.user_id
     `);
-    res.json(rows);
-  } catch (err) {
-    next(err);
-  }
+        res.json(rows);
+    } catch (err) {
+        next(err);
+    }
 });
 
 // Custom structure for EQUIPMENT_RENTAL: drop user_id, prepend Username
 app.get('/api/tables/EQUIPMENT_RENTAL/structure', authenticateToken, async (req, res, next) => {
-  try {
-    const [orig] = await dbPool.query('DESCRIBE `EQUIPMENT_RENTAL`');
-    // remove the raw user_id column
-    const filtered = orig.filter(col => col.Field !== 'user_id');
-    // add our Username field in front
-    const custom = [
-      { Field: 'Username', Type: 'varchar(255)', Null: 'YES', Key: '', Default: null, Extra: '' },
-      ...filtered
-    ];
-    res.json(custom);
-  } catch (err) {
-    next(err);
-  }
+    try {
+        const [orig] = await dbPool.query('DESCRIBE `EQUIPMENT_RENTAL`');
+        // remove the raw user_id column
+        const filtered = orig.filter(col => col.Field !== 'user_id');
+        // add our Username field in front
+        const custom = [
+            { Field: 'Username', Type: 'varchar(255)', Null: 'YES', Key: '', Default: null, Extra: '' },
+            ...filtered
+        ];
+        res.json(custom);
+    } catch (err) {
+        next(err);
+    }
 });
 
 
 // 3. MANAGES → show employee name instead of user_id
 app.get('/api/tables/MANAGES', authenticateToken, async (req, res, next) => {
-  try {
-    const [rows] = await dbPool.query(`
+    try {
+        const [rows] = await dbPool.query(`
       SELECT
         m.Equipment_id           AS Equipment_id,
         m.user_id                AS user_id,
@@ -231,25 +231,25 @@ app.get('/api/tables/MANAGES', authenticateToken, async (req, res, next) => {
       JOIN EMPLOYEE e
         ON m.user_id = e.user_id
     `);
-    res.json(rows);
-  } catch (err) {
-    next(err);
-  }
+        res.json(rows);
+    } catch (err) {
+        next(err);
+    }
 });
 
 // Custom structure for MANAGES: drop user_id, prepend EmployeeName
 app.get('/api/tables/MANAGES/structure', authenticateToken, async (req, res, next) => {
-  try {
-    const [orig] = await dbPool.query('DESCRIBE `MANAGES`');
-    const filtered = orig.filter(col => col.Field !== 'user_id');
-    const custom = [
-      { Field: 'EmployeeName', Type: 'varchar(255)', Null: 'YES', Key: '', Default: null, Extra: '' },
-      ...filtered
-    ];
-    res.json(custom);
-  } catch (err) {
-    next(err);
-  }
+    try {
+        const [orig] = await dbPool.query('DESCRIBE `MANAGES`');
+        const filtered = orig.filter(col => col.Field !== 'user_id');
+        const custom = [
+            { Field: 'EmployeeName', Type: 'varchar(255)', Null: 'YES', Key: '', Default: null, Extra: '' },
+            ...filtered
+        ];
+        res.json(custom);
+    } catch (err) {
+        next(err);
+    }
 });
 
 // --- Table Data Routes ---
@@ -265,49 +265,43 @@ app.delete('/api/tables/:tableName/:id', async (req, res, next) => { if (!req.us
 
 // --- Statistics Route --- (Query Updated)
 app.get('/api/statistics', async (req, res, next) => {
-    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) { return res.status(403).json({ error: 'Forbidden: Admin/Employee only.' }); }
+    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) {
+        return res.status(403).json({ error: 'Forbidden: Admin/Employee only.' });
+    }
+    const userId = req.user.userId;
+    // Define metrics: key maps to SQL + optional params
+    const metrics = [
+        // Admin metrics
+        { key: 'usersByRole', query: 'SELECT role   AS label, COUNT(*) AS value FROM users GROUP BY role' },
+        { key: 'avgAccountAge', query: 'SELECT ROUND(AVG(DATEDIFF(CURDATE(), created_at)),1) AS value FROM users' },
+        { key: 'totalPlans', query: 'SELECT COUNT(*) AS value FROM MEMBERSHIP_PLAN' },
+        { key: 'coursesByStatus', query: 'SELECT Status AS label, COUNT(*) AS value FROM GOLF_COURSE GROUP BY Status' },
+        { key: 'holesByPar', query: 'SELECT Par    AS label, COUNT(*) AS value FROM HOLE GROUP BY Par' },
+        // Employee metrics
+        { key: 'bookingsToday', query: 'SELECT COUNT(*) AS value FROM MEMBER_TEE_TIME mt JOIN TEE_TIME tt ON mt.Tee_time_id=tt.Tee_time_id WHERE tt.Date = CURDATE()' },
+        { key: 'upcomingBookings', query: 'SELECT COUNT(*) AS value FROM MEMBER_TEE_TIME mt JOIN TEE_TIME tt ON mt.Tee_time_id=tt.Tee_time_id WHERE tt.Date > CURDATE()' },
+        { key: 'avgAvailSlots', query: 'SELECT ROUND(AVG(Available_slots),1) AS value FROM TEE_TIME' },
+        { key: 'rentalsThisMonth', query: 'SELECT COUNT(*) AS value FROM EQUIPMENT_RENTAL WHERE MONTH(Rental_date)=MONTH(CURDATE()) AND YEAR(Rental_date)=YEAR(CURDATE())' },
+        { key: 'pendingReturns', query: 'SELECT COUNT(*) AS value FROM EQUIPMENT_RENTAL WHERE Returned = FALSE' },
+        // Member metrics (per user)
+        { key: 'myUpcomingTeeTimes', query: 'SELECT COUNT(*) AS value FROM MEMBER_TEE_TIME mt JOIN TEE_TIME tt ON mt.Tee_time_id=tt.Tee_time_id WHERE mt.user_id = ? AND tt.Date > CURDATE()', params: [userId] },
+        { key: 'myPastTeeTimes', query: 'SELECT COUNT(*) AS value FROM MEMBER_TEE_TIME mt JOIN TEE_TIME tt ON mt.Tee_time_id=tt.Tee_time_id WHERE mt.user_id = ? AND tt.Date < CURDATE()', params: [userId] },
+        { key: 'myActiveRentals', query: 'SELECT COUNT(*) AS value FROM EQUIPMENT_RENTAL WHERE user_id = ? AND Returned = FALSE', params: [userId] },
+        { key: 'myReturnedRentals', query: 'SELECT COUNT(*) AS value FROM EQUIPMENT_RENTAL WHERE user_id = ? AND Returned = TRUE', params: [userId] },
+        { key: 'myAvgRentalDuration', query: 'SELECT ROUND(AVG(DATEDIFF(Return_date,Rental_date)),1) AS value FROM EQUIPMENT_RENTAL WHERE user_id = ? AND Return_date IS NOT NULL', params: [userId] }
+    ];
     try {
-        // Compute safe table counts for known tables
-        const tableList = ['GOLF_COURSE', 'HOLE', 'MEMBERSHIP_PLAN', 'PLAN_DISCOUNT', 'EQUIPMENT_TYPE', 'EQUIPMENT', 'TEE_TIME', 'MEMBER', 'EMPLOYEE', 'MEMBER_TEE_TIME', 'MANAGES', 'EQUIPMENT_RENTAL'];
-        const tableCounts = {};
-        for (const t of tableList) {
+        const stats = {};
+        for (const m of metrics) {
             try {
-                const [c] = await dbPool.query(`SELECT COUNT(*) as count FROM \`${t}\``);
-                tableCounts[t] = c[0].count;
+                const [rows] = m.params ? await dbPool.query(m.query, m.params) : await dbPool.query(m.query);
+                stats[m.key] = rows;
             } catch (err) {
-                // skip missing or inaccessible table
+                console.error(`Stats: ${m.key} failed, skipping`, err.message);
             }
         }
-
-        // Membership counts by plan type
-        const [membersByPlan] = await dbPool.query(
-            `SELECT mp.Plan_type, COUNT(*) as count
-             FROM MEMBER m
-             JOIN MEMBERSHIP_PLAN mp
-               ON m.Member_plan_id = mp.Plan_id
-             GROUP BY mp.Plan_type`
-        );
-
-        // Tee time status counts
-        const [teeTimeStatus] = await dbPool.query(
-            `SELECT Status, COUNT(*) as count
-             FROM TEE_TIME
-             GROUP BY Status`
-        );
-
-        // Equipment availability counts
-        const [equipmentAvailability] = await dbPool.query(
-            `SELECT et.Type,
-                    SUM(CASE WHEN e.Availability = TRUE THEN 1 ELSE 0 END) as available,
-                    COUNT(e.Equipment_id) as total
-             FROM EQUIPMENT e
-             JOIN EQUIPMENT_TYPE et
-               ON e.Type = et.Type
-             GROUP BY et.Type`
-        );
-
-        res.json({ tableCounts, membersByPlan, teeTimeStatus, equipmentAvailability });
-    } catch (error) { console.error("Stats Err:", error); next(error); }
+        res.json(stats);
+    } catch (err) { console.error('Stats handler error:', err); next(err); }
 });
 
 
@@ -319,18 +313,18 @@ app.get('/api/statistics', async (req, res, next) => {
 app.get('/api/member/profile', authenticateToken, async (req, res, next) => {
 
     if (req.user.role !== 'member') {
-    
-    return res.status(403).json({ error: 'Access forbidden. Member role required.' });
-    
+
+        return res.status(403).json({ error: 'Access forbidden. Member role required.' });
+
     }
-    
+
     const userId = req.user.userId;
-    
+
     try {
+
+        const [[profile]] = await dbPool.query(`
     
-    const [[profile]] = await dbPool.query(`
-    
-    SELECT
+        SELECT
     
     m.user_id AS userId,
     
@@ -352,108 +346,108 @@ app.get('/api/member/profile', authenticateToken, async (req, res, next) => {
     
     pd.Rental_discount AS rentalDiscount
     
-    FROM MEMBER m
+        FROM MEMBER m
     
-    JOIN users u
+        JOIN users u
     
-    ON m.user_id = u.user_id
+          ON m.user_id = u.user_id
     
-    LEFT JOIN MEMBERSHIP_PLAN mp
+        LEFT JOIN MEMBERSHIP_PLAN mp
     
-    ON m.Member_plan_id = mp.Plan_id
+          ON m.Member_plan_id = mp.Plan_id
     
-    LEFT JOIN PLAN_DISCOUNT pd
+        LEFT JOIN PLAN_DISCOUNT pd
     
-    ON mp.Plan_type = pd.Plan_type
+          ON mp.Plan_type = pd.Plan_type
     
-    WHERE m.user_id = ?
+        WHERE m.user_id = ?
     
-    `, [userId]);
-    
-    
-    
-    if (!profile) {
-    
-    return res.status(404).json({ error: 'Member profile not found.' });
-    
-    }
-    
-    res.json(profile);
-    
+      `, [userId]);
+
+
+
+        if (!profile) {
+
+            return res.status(404).json({ error: 'Member profile not found.' });
+
+        }
+
+        res.json(profile);
+
     } catch (err) {
-    
-    next(err);
-    
+
+        next(err);
+
     }
-    
-    });
-    
-    
-    
-    // PUT /api/member/profile
-    
-    app.put('/api/member/profile', authenticateToken, async (req, res, next) => {
-    
+
+});
+
+
+
+// PUT /api/member/profile
+
+app.put('/api/member/profile', authenticateToken, async (req, res, next) => {
+
     if (req.user.role !== 'member') {
-    
-    return res.status(403).json({ error: 'Access forbidden. Member role required.' });
-    
+
+        return res.status(403).json({ error: 'Access forbidden. Member role required.' });
+
     }
-    
+
     const userId = req.user.userId;
-    
+
     const { firstName, lastName, email, phone } = req.body;
-    
-    
-    
+
+
+
     // Simple validation
-    
+
     if (!firstName || !lastName) {
-    
-    return res.status(400).json({ error: 'First and last name are required.' });
-    
+
+        return res.status(400).json({ error: 'First and last name are required.' });
+
     }
-    
-    
-    
+
+
+
     try {
+
+        const [result] = await dbPool.query(`
     
-    const [result] = await dbPool.query(`
+      UPDATE MEMBER
     
-    UPDATE MEMBER
+      SET
     
-    SET
+        Fname = ?,
     
-    Fname = ?,
+        Lname = ?,
     
-    Lname = ?,
+        Email = ?,
     
-    Email = ?,
+        Phone_number = ?
     
-    Phone_number = ?
-    
-    WHERE user_id = ?
+      WHERE user_id = ?
     
     `, [firstName, lastName, email, phone, userId]);
-    
-    
-    
-    if (result.affectedRows === 0) {
-    
-    return res.status(404).json({ error: 'Member profile not found.' });
-    
-    }
-    
-    res.json({ message: 'Profile updated successfully.' });
-    
+
+
+
+        if (result.affectedRows === 0) {
+
+            return res.status(404).json({ error: 'Member profile not found.' });
+
+        }
+
+        res.json({ message: 'Profile updated successfully.' });
+
     } catch (err) {
-    
-    next(err);
-    
+
+        next(err);
+
     }
-    
-    });
-    
+
+});
+
 // GET /api/member/plans
 app.get('/api/member/plans', async (req, res, next) => { try { const [p] = await dbPool.query(`SELECT mp.*, pd.Rental_discount FROM MEMBERSHIP_PLAN mp LEFT JOIN PLAN_DISCOUNT pd ON mp.Plan_type=pd.Plan_type ORDER BY mp.Fees ASC`); res.json(p); } catch (err) { next(err); } });
 // PUT /api/member/plan
@@ -525,10 +519,10 @@ app.get('/api/member/equipment', async (req, res, next) => {
     if (!req.user || req.user.role !== 'member') return res.status(403).json({ error: 'Forbidden' });
     const userId = req.user.userId;
     try {
-        const [avail]=await dbPool.query(`SELECT et.Type, et.Rental_fee, COUNT(e.Equipment_id) as available FROM EQUIPMENT_TYPE et LEFT JOIN EQUIPMENT e ON et.Type=e.Type AND e.Availability=TRUE GROUP BY et.Type, et.Rental_fee ORDER BY et.Type`);
-        const [rent]=await dbPool.query(`SELECT er.*, et.Type FROM EQUIPMENT_RENTAL er JOIN EQUIPMENT e ON er.Equipment_id=e.Equipment_id JOIN EQUIPMENT_TYPE et ON e.Type=et.Type WHERE er.user_id=? AND er.Returned=FALSE ORDER BY er.Rental_date DESC`,[userId]);
-        res.json({available:avail, rentals:rent});
-    } catch(err){next(err);}
+        const [avail] = await dbPool.query(`SELECT et.Type, et.Rental_fee, COUNT(e.Equipment_id) as available FROM EQUIPMENT_TYPE et LEFT JOIN EQUIPMENT e ON et.Type=e.Type AND e.Availability=TRUE GROUP BY et.Type, et.Rental_fee ORDER BY et.Type`);
+        const [rent] = await dbPool.query(`SELECT er.*, et.Type FROM EQUIPMENT_RENTAL er JOIN EQUIPMENT e ON er.Equipment_id=e.Equipment_id JOIN EQUIPMENT_TYPE et ON e.Type=et.Type WHERE er.user_id=? AND er.Returned=FALSE ORDER BY er.Rental_date DESC`, [userId]);
+        res.json({ available: avail, rentals: rent });
+    } catch (err) { next(err); }
 });
 // POST /api/member/rent-equipment
 app.post('/api/member/rent-equipment', async (req, res, next) => {
@@ -540,22 +534,22 @@ app.post('/api/member/rent-equipment', async (req, res, next) => {
     try {
         await conn.beginTransaction();
         const rentalResults = [];
-        for(const item of items){
-            const [availEq]=await conn.query(`SELECT Equipment_id FROM EQUIPMENT WHERE Type=? AND Availability=TRUE LIMIT ? FOR UPDATE`,[item.type, item.quantity]);
-            if(availEq.length<item.quantity){await conn.rollback(); return res.status(400).json({error:`Not enough ${item.type}`});}
-            const today=new Date();
-            const retDate=new Date(today);
-            retDate.setDate(today.getDate()+7);
-            for(const eq of availEq){
-                const [rentRes]=await conn.query(`INSERT INTO EQUIPMENT_RENTAL (user_id, Equipment_id, Rental_date, Return_date, Returned) VALUES (?, ?, CURDATE(), ?, FALSE)`,[userId, eq.Equipment_id, retDate.toISOString().split('T')[0]]);
-                await conn.query(`UPDATE EQUIPMENT SET Availability=FALSE WHERE Equipment_id=?`,[eq.Equipment_id]);
-                const [typeRes]=await conn.query(`SELECT Type FROM EQUIPMENT WHERE Equipment_id=?`,[eq.Equipment_id]);
-                rentalResults.push({Rental_id: rentRes.insertId, Type:typeRes[0].Type, Rental_date:today.toISOString().split('T')[0], Return_date:retDate.toISOString().split('T')[0], Returned:false});
+        for (const item of items) {
+            const [availEq] = await conn.query(`SELECT Equipment_id FROM EQUIPMENT WHERE Type=? AND Availability=TRUE LIMIT ? FOR UPDATE`, [item.type, item.quantity]);
+            if (availEq.length < item.quantity) { await conn.rollback(); return res.status(400).json({ error: `Not enough ${item.type}` }); }
+            const today = new Date();
+            const retDate = new Date(today);
+            retDate.setDate(today.getDate() + 7);
+            for (const eq of availEq) {
+                const [rentRes] = await conn.query(`INSERT INTO EQUIPMENT_RENTAL (user_id, Equipment_id, Rental_date, Return_date, Returned) VALUES (?, ?, CURDATE(), ?, FALSE)`, [userId, eq.Equipment_id, retDate.toISOString().split('T')[0]]);
+                await conn.query(`UPDATE EQUIPMENT SET Availability=FALSE WHERE Equipment_id=?`, [eq.Equipment_id]);
+                const [typeRes] = await conn.query(`SELECT Type FROM EQUIPMENT WHERE Equipment_id=?`, [eq.Equipment_id]);
+                rentalResults.push({ Rental_id: rentRes.insertId, Type: typeRes[0].Type, Rental_date: today.toISOString().split('T')[0], Return_date: retDate.toISOString().split('T')[0], Returned: false });
             }
         }
         await conn.commit();
-        res.json({message:'Rented', rentals:rentalResults});
-    } catch(err){await conn.rollback(); next(err);} finally{conn.release();}
+        res.json({ message: 'Rented', rentals: rentalResults });
+    } catch (err) { await conn.rollback(); next(err); } finally { conn.release(); }
 });
 // POST /api/member/equipment/:rentalId/return
 app.post('/api/member/equipment/:rentalId/return', async (req, res, next) => {
@@ -614,7 +608,7 @@ app.get('/api/staff/plans', async (req, res, next) => {
 // Renamed route slightly for clarity
 app.put('/api/staff/members/:userId/plan', async (req, res, next) => {
     // Allow Admins or Employees
-     if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) {
+    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) {
         // Belt-and-suspenders check, though middleware should catch it
         return res.status(403).json({ error: 'Forbidden: Admin/Employee access required.' });
     }
@@ -633,20 +627,20 @@ app.put('/api/staff/members/:userId/plan', async (req, res, next) => {
 
     // Validate Plan_id exists if not null
     if (Plan_id !== null) {
-         try {
-             const [planExists] = await dbPool.query('SELECT Plan_id FROM MEMBERSHIP_PLAN WHERE Plan_id = ?', [Plan_id]);
-             if (planExists.length === 0) {
-                 return res.status(400).json({ error: 'Invalid Plan ID selected.' });
-             }
-         } catch(error) { next(error); return; }
+        try {
+            const [planExists] = await dbPool.query('SELECT Plan_id FROM MEMBERSHIP_PLAN WHERE Plan_id = ?', [Plan_id]);
+            if (planExists.length === 0) {
+                return res.status(400).json({ error: 'Invalid Plan ID selected.' });
+            }
+        } catch (error) { next(error); return; }
     }
 
     try {
         // Ensure target user exists in MEMBER table first
-         const [memberExists] = await dbPool.query('SELECT user_id FROM MEMBER WHERE user_id = ?', [targetUserId]);
-         if (memberExists.length === 0) {
-             return res.status(404).json({ error: 'Member profile not found for the given User ID.' });
-         }
+        const [memberExists] = await dbPool.query('SELECT user_id FROM MEMBER WHERE user_id = ?', [targetUserId]);
+        if (memberExists.length === 0) {
+            return res.status(404).json({ error: 'Member profile not found for the given User ID.' });
+        }
 
         // Update the plan
         const [result] = await dbPool.query(
@@ -662,8 +656,8 @@ app.put('/api/staff/members/:userId/plan', async (req, res, next) => {
         res.json({ message: `Membership plan updated successfully for user ${targetUserId}` });
 
     } catch (error) {
-         console.error(`Error updating plan for user ${targetUserId}:`, error);
-         next(error);
+        console.error(`Error updating plan for user ${targetUserId}:`, error);
+        next(error);
     }
 });
 // --------------------------------------------------------------

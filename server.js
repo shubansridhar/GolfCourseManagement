@@ -163,9 +163,72 @@ app.get('/api/statistics', async (req, res, next) => {
 
 // --- Member API Routes (Updated for NEW schema) ---
 // GET /api/member/profile
-app.get('/api/member/profile', async (req, res, next) => { if (!req.user || req.user.role !== 'member') return res.status(403).json({ error: 'Forbidden' }); try { const [rows]=await dbPool.query(`SELECT m.*, mp.Plan_type, mp.Fees, pd.Rental_discount FROM MEMBER m LEFT JOIN MEMBERSHIP_PLAN mp ON m.Member_plan_id=mp.Plan_id LEFT JOIN PLAN_DISCOUNT pd ON mp.Plan_type=pd.Plan_type WHERE m.user_id=?`,[req.user.userId]); if(rows.length===0) return res.status(404).json({error:'Member profile not found'}); res.json(rows[0]); } catch(err){next(err);} });
+app.get('/api/member/profile', authenticateToken, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+      return res.status(403).json({ error: 'Access forbidden. Member role required.' });
+    }
+    const userId = req.user.userId;
+  
+    try {
+      const [[profile]] = await dbPool.query(`
+        SELECT
+          m.user_id            AS userId,
+          m.Fname              AS firstName,
+          m.Lname              AS lastName,
+          m.Email              AS email,
+          m.Phone_number       AS phone,
+          m.Member_plan_id     AS planId,
+          mp.Plan_type         AS planType,
+          mp.Fees              AS planFees,
+          pd.Rental_discount   AS rentalDiscount
+        FROM MEMBER m
+        LEFT JOIN MEMBERSHIP_PLAN mp
+          ON m.Member_plan_id = mp.Plan_id
+        LEFT JOIN PLAN_DISCOUNT pd
+          ON mp.Plan_type = pd.Plan_type
+        WHERE m.user_id = ?
+      `, [userId]);
+  
+      if (!profile) {
+        return res.status(404).json({ error: 'Member profile not found.' });
+      }
+      res.json(profile);
+    } catch (err) {
+      next(err);
+    }
+  });
 // PUT /api/member/profile
-app.put('/api/member/profile', async (req, res, next) => { if (!req.user || req.user.role !== 'member') return res.status(403).json({ error: 'Forbidden' }); const { Fname, Lname, Email, Phone_number, Handicap } = req.body; const userId = req.user.userId; if (!Fname || !Lname) return res.status(400).json({ error: 'First/Last name required.' }); try { const [r]=await dbPool.query(`UPDATE MEMBER SET Fname=?, Lname=?, Email=?, Phone_number=?, Handicap=? WHERE user_id=?`,[Fname, Lname, Email, Phone_number, Handicap, userId]); if(r.affectedRows===0) return res.status(404).json({error:'Profile not found'}); res.json({message:'Profile updated'}); } catch(err){next(err);} });
+app.put('/api/member/profile', authenticateToken, async (req, res, next) => {
+  if (req.user.role !== 'member') {
+    return res.status(403).json({ error: 'Access forbidden. Member role required.' });
+  }
+  const userId = req.user.userId;
+  const { firstName, lastName, email, phone } = req.body;
+
+  // Simple validation
+  if (!firstName || !lastName) {
+    return res.status(400).json({ error: 'First and last name are required.' });
+  }
+
+  try {
+    const [result] = await dbPool.query(`
+      UPDATE MEMBER
+      SET
+        Fname = ?,
+        Lname = ?,
+        Email = ?,
+        Phone_number = ?,
+      WHERE user_id = ?
+    `, [firstName, lastName, email, phone, handicap, userId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Member profile not found.' });
+    }
+    res.json({ message: 'Profile updated successfully.' });
+  } catch (err) {
+    next(err);
+  }
+});
 // GET /api/member/plans
 app.get('/api/member/plans', async (req, res, next) => { try { const [p]=await dbPool.query(`SELECT mp.*, pd.Rental_discount FROM MEMBERSHIP_PLAN mp LEFT JOIN PLAN_DISCOUNT pd ON mp.Plan_type=pd.Plan_type ORDER BY mp.Fees ASC`); res.json(p); } catch(err){next(err);} });
 // PUT /api/member/plan

@@ -135,8 +135,6 @@ function renderMemberProfile() {
             <p><strong>Name:</strong> ${memberProfile.name || 'Not provided'}</p>
             <p><strong>Email:</strong> ${memberProfile.email || 'Not provided'}</p>
             <p><strong>Phone:</strong> ${memberProfile.phone || 'Not provided'}</p>
-            <p><strong>Address:</strong> ${memberProfile.address || 'Not provided'}</p>
-            <p><strong>Handicap:</strong> ${memberProfile.handicap || 'Not provided'}</p>
             <p><strong>Member Since:</strong> ${new Date(memberProfile.joinDate).toLocaleDateString()}</p>
         </div>
     `;

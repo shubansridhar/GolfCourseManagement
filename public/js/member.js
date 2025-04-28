@@ -544,11 +544,6 @@ function openProfileEditModal() {
         <input type="tel" id="profile-phone" name="phone" class="form-control"
                value="${memberProfile.phone || ''}" />
       </div>
-      <div class="form-group">
-        <label for="profile-since">Member Since</label>
-        <input type="text" id="profile-since" class="form-control" readonly
-               value="${since}" />
-      </div>
     `;
   
     // Show the modal

@@ -21,6 +21,7 @@ let memberTeeTimes = null;
 let availableTeeTimes = null;
 let availableEquipment = null;
 let memberRentals = null;
+let currentEquipmentTab = 'available';
 
 /**
  * Load all member data
@@ -49,7 +50,7 @@ async function loadMemberData() {
         renderMemberProfile();
         renderMembershipPlan();
         renderTeeTimes('upcoming');
-        renderEquipment('available');
+        renderEquipment(currentEquipmentTab);
 
         showLoading(false);
     } catch (error) {
@@ -299,28 +300,20 @@ function renderEquipment(tab = 'available') {
                 content = `
                     <div class="equipment-list">
                         ${availableEquipment.map(equipment => {
-                    // Safe property access
-                    const type = equipment.type || 'Equipment';
-                    const brand = equipment.brand || 'Generic';
-                    const condition = equipment.condition || 'Good';
-                    const fee = equipment.fee !== undefined ? equipment.fee.toFixed(2) : '0.00';
-                    const id = equipment.id || '';
-
-                    return `
-                            <div class="equipment-card">
-                                <div class="equipment-info">
-                                    <h4>${type}</h4>
-                                    <p>Brand: ${brand}</p>
-                                    <p>Condition: ${condition}</p>
-                                    <p>Rental Fee: $${fee}</p>
-                                </div>
-                                <div class="equipment-actions">
-                                    <button class="btn btn-sm btn-success rent-equipment" data-id="${id}">
-                                        <i class="fas fa-shopping-cart"></i> Rent
-                                    </button>
-                                </div>
-                            </div>`;
-                }).join('')}
+                            const type = equipment.Type || 'Equipment';
+                            let fee = equipment.Rental_fee;
+                            if (typeof fee !== 'number') fee = parseFloat(fee);
+                            if (isNaN(fee)) fee = 0;
+                            const available = equipment.available || 0;
+                            return `
+                                <div class="equipment-card">
+                                    <div class="equipment-info">
+                                        <h4>${type}</h4>
+                                        <p>Rental Fee: $${fee.toFixed(2)}</p>
+                                        <p>Available: ${available}</p>
+                                    </div>
+                                </div>`;
+                        }).join('')}
                     </div>
                 `;
             }
@@ -333,31 +326,28 @@ function renderEquipment(tab = 'available') {
                 content = `
                     <div class="equipment-list">
                         ${memberRentals.map(rental => {
-                    // Safe property access
-                    const type = rental.type || 'Equipment';
-                    const brand = rental.brand || 'Generic';
-                    const rentalDate = rental.rentalDate ? new Date(rental.rentalDate).toLocaleDateString() : 'N/A';
-                    const dueDate = rental.dueDate ? new Date(rental.dueDate).toLocaleDateString() : 'N/A';
-                    const status = rental.status || 'Active';
-                    const statusClass = status ? status.toLowerCase() : 'active';
-                    const id = rental.id || '';
-
-                    return `
-                            <div class="equipment-card">
-                                <div class="equipment-info">
-                                    <h4>${type}</h4>
-                                    <p>Brand: ${brand}</p>
-                                    <p>Rented: ${rentalDate}</p>
-                                    <p>Due: ${dueDate}</p>
-                                    <p>Status: <span class="status ${statusClass}">${status}</span></p>
-                                </div>
-                                <div class="equipment-actions">
-                                    <button class="btn btn-sm btn-warning return-equipment" data-id="${id}">
-                                        <i class="fas fa-undo"></i> Return
-                                    </button>
-                                </div>
-                            </div>`;
-                }).join('')}
+                            console.log('Rendering rental:', rental);
+                            const type = rental.Type || 'Equipment';
+                            const rentalDate = rental.Rental_date ? new Date(rental.Rental_date).toLocaleDateString() : 'N/A';
+                            const returnDate = rental.Return_date ? new Date(rental.Return_date).toLocaleDateString() : 'N/A';
+                            const returned = rental.Returned ? 'Yes' : 'No';
+                            return `
+                                <div class="equipment-card">
+                                    <div class="equipment-info">
+                                        <h4>${type}</h4>
+                                        <p>Rental Date: ${rentalDate}</p>
+                                        <p>Return Date: ${returnDate}</p>
+                                        <p>Returned: ${returned}</p>
+                                    </div>
+                                    ${!rental.Returned ? `
+                                    <div class="equipment-actions">
+                                        <button class="btn btn-sm btn-warning return-equipment" data-id="${rental.Rental_id}">
+                                            <i class="fas fa-undo"></i> Return
+                                        </button>
+                                    </div>
+                                    ` : ''}
+                                </div>`;
+                        }).join('')}
                     </div>
                 `;
             }
@@ -366,12 +356,7 @@ function renderEquipment(tab = 'available') {
 
     equipmentTabContent.innerHTML = content;
 
-    // Add event listeners to buttons
-    if (tab === 'available') {
-        document.querySelectorAll('.rent-equipment').forEach(btn => {
-            btn.addEventListener('click', () => rentEquipment(btn.dataset.id));
-        });
-    } else if (tab === 'my-rentals') {
+    if (tab === 'my-rentals') {
         document.querySelectorAll('.return-equipment').forEach(btn => {
             btn.addEventListener('click', () => returnEquipment(btn.dataset.id));
         });
@@ -500,7 +485,17 @@ function setupMemberEventListeners() {
     });
 
     document.querySelectorAll('.equipment-tabs .tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => renderEquipment(btn.dataset.tab));
+        btn.addEventListener('click', async () => {
+            // Map tab names to match renderEquipment cases
+            if (btn.dataset.tab === 'available-equipment') {
+                currentEquipmentTab = 'available';
+            } else if (btn.dataset.tab === 'my-rentals') {
+                currentEquipmentTab = 'my-rentals';
+            } else {
+                currentEquipmentTab = btn.dataset.tab;
+            }
+            await loadMemberData();
+        });
     });
 
     // Refresh data button
@@ -676,7 +671,98 @@ async function openBookTeeTimeModal() {
   }
   
 function openRentEquipmentModal() {
-    console.log('Open rent equipment modal');
+    // Remove any existing modal
+    let modal = document.getElementById('rentEquipmentModal');
+    if (modal) modal.remove();
+
+    // Debug log
+    console.log('Available equipment for modal:', availableEquipment);
+
+    // Create modal
+    modal = document.createElement('div');
+    modal.id = 'rentEquipmentModal';
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Rent Equipment</h3>
+                <span class="close" id="closeRentEquipmentModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="rent-equipment-error" class="error-message" style="display:none;color:red;"></div>
+                <form id="rent-equipment-form">
+                    <div class="equipment-list">
+                        ${availableEquipment && availableEquipment.length > 0 ? availableEquipment.map(eq => {
+                            let fee = eq.Rental_fee;
+                            if (typeof fee !== 'number') fee = parseFloat(fee);
+                            if (isNaN(fee)) fee = 0;
+                            return `
+                                <div class="equipment-item">
+                                    <div class="equipment-item-info">
+                                        <strong>${eq.Type}</strong><br>
+                                        Rental Fee: $${fee.toFixed(2)}<br>
+                                        Available: ${eq.available}
+                                    </div>
+                                    <div class="equipment-item-action">
+                                        <input type="number" min="0" max="${eq.available}" value="0" data-type="${eq.Type}" class="quantity-input" style="width:60px;">
+                                    </div>
+                                </div>
+                            `;
+                        }).join('') : '<p>No equipment available for rent.</p>'}
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelRentEquipment">Cancel</button>
+                <button class="btn btn-primary" id="submitRentEquipment">Rent Selected</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Close modal handlers
+    document.getElementById('closeRentEquipmentModal').onclick = () => modal.remove();
+    document.getElementById('cancelRentEquipment').onclick = (e) => { e.preventDefault(); modal.remove(); };
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    // Submit rental
+    document.getElementById('submitRentEquipment').onclick = async (e) => {
+        e.preventDefault();
+        const errorDiv = document.getElementById('rent-equipment-error');
+        errorDiv.style.display = 'none';
+        const items = [];
+        document.querySelectorAll('.quantity-input').forEach(input => {
+            const qty = parseInt(input.value);
+            if (qty > 0) {
+                items.push({ type: input.dataset.type, quantity: qty });
+            }
+        });
+        if (items.length === 0) {
+            errorDiv.textContent = 'Please select at least one equipment to rent.';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        try {
+            const response = await authenticatedFetch(`${MEMBER_API}/rent-equipment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items })
+            });
+            if (response.ok) {
+                showNotification('Equipment rented successfully!', 'success');
+                modal.remove();
+                await loadMemberData();
+            } else {
+                const error = await response.json();
+                errorDiv.textContent = error.error || 'Failed to rent equipment.';
+                errorDiv.style.display = 'block';
+            }
+        } catch (err) {
+            errorDiv.textContent = 'Error renting equipment. Please try again.';
+            errorDiv.style.display = 'block';
+        }
+    };
 }
 
 // Export functions

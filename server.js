@@ -334,9 +334,78 @@ app.post('/api/member/book-tee-time', async (req, res, next) => { if (!req.user 
 // POST /api/member/cancel-tee-time
 app.post('/api/member/cancel-tee-time', async (req, res, next) => { if (!req.user || req.user.role !== 'member') return res.status(403).json({ error: 'Forbidden' }); const { teeTimeId } = req.body; const userId = req.user.userId; if (!teeTimeId) return res.status(400).json({ error: 'ID required' }); const conn = await dbPool.getConnection(); try { await conn.beginTransaction(); const [book] = await conn.query(`SELECT * FROM MEMBER_TEE_TIME WHERE user_id=? AND Tee_time_id=?`, [userId, teeTimeId]); if (book.length === 0) { await conn.rollback(); return res.status(404).json({ error: 'Booking not found' }); } await conn.query(`DELETE FROM MEMBER_TEE_TIME WHERE user_id=? AND Tee_time_id=?`, [userId, teeTimeId]); await conn.query(`UPDATE TEE_TIME SET Available_slots=Available_slots+1 WHERE Tee_time_id=?`, [teeTimeId]); await conn.commit(); res.json({ message: 'Cancelled' }); } catch (err) { await conn.rollback(); next(err); } finally { conn.release(); } });
 // GET /api/member/equipment
-app.get('/api/member/equipment', async (req, res, next) => { if (!req.user || req.user.role !== 'member') return res.status(403).json({ error: 'Forbidden' }); const userId = req.user.userId; try { const [avail] = await dbPool.query(`SELECT et.Type, et.Rental_fee, COUNT(e.Equipment_id) as available FROM EQUIPMENT_TYPE et LEFT JOIN EQUIPMENT e ON et.Type=e.Type AND e.Availability=TRUE GROUP BY et.Type, et.Rental_fee ORDER BY et.Type`); const [rent] = await dbPool.query(`SELECT er.*, et.Type FROM EQUIPMENT_RENTAL er JOIN EQUIPMENT e ON er.Equipment_id=e.Equipment_id JOIN EQUIPMENT_TYPE et ON e.Type=et.Type WHERE er.user_id=? ORDER BY er.Rental_date DESC`, [userId]); res.json({ available: avail, rentals: rent }); } catch (err) { next(err); } });
+app.get('/api/member/equipment', async (req, res, next) => {
+    if (!req.user || req.user.role !== 'member') return res.status(403).json({ error: 'Forbidden' });
+    const userId = req.user.userId;
+    try {
+        const [avail]=await dbPool.query(`SELECT et.Type, et.Rental_fee, COUNT(e.Equipment_id) as available FROM EQUIPMENT_TYPE et LEFT JOIN EQUIPMENT e ON et.Type=e.Type AND e.Availability=TRUE GROUP BY et.Type, et.Rental_fee ORDER BY et.Type`);
+        const [rent]=await dbPool.query(`SELECT er.*, et.Type FROM EQUIPMENT_RENTAL er JOIN EQUIPMENT e ON er.Equipment_id=e.Equipment_id JOIN EQUIPMENT_TYPE et ON e.Type=et.Type WHERE er.user_id=? AND er.Returned=FALSE ORDER BY er.Rental_date DESC`,[userId]);
+        res.json({available:avail, rentals:rent});
+    } catch(err){next(err);}
+});
 // POST /api/member/rent-equipment
-app.post('/api/member/rent-equipment', async (req, res, next) => { if (!req.user || req.user.role !== 'member') return res.status(403).json({ error: 'Forbidden' }); const { items } = req.body; const userId = req.user.userId; if (!items || !Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'Invalid data.' }); const conn = await dbPool.getConnection(); try { await conn.beginTransaction(); const rentalResults = []; for (const item of items) { const [availEq] = await conn.query(`SELECT Equipment_id FROM EQUIPMENT WHERE Type=? AND Availability=TRUE LIMIT ? FOR UPDATE`, [item.type, item.quantity]); if (availEq.length < item.quantity) { await conn.rollback(); return res.status(400).json({ error: `Not enough ${item.type}` }); } const today = new Date(); const retDate = new Date(today); retDate.setDate(today.getDate() + 7); for (const eq of availEq) { const [rentRes] = await conn.query(`INSERT INTO EQUIPMENT_RENTAL (user_id, Equipment_id, Rental_date, Return_date, Returned) VALUES (?, ?, CURDATE(), ?, FALSE)`, [userId, eq.Equipment_id, retDate.toISOString().split('T')[0]]); await conn.query(`UPDATE EQUIPMENT SET Availability=FALSE WHERE Equipment_id=?`, [eq.Equipment_id]); const [typeRes] = await conn.query(`SELECT Type FROM EQUIPMENT WHERE Equipment_id=?`, [eq.Equipment_id]); rentalResults.push({ Rental_id: rentRes.insertId, Type: typeRes[0].Type, Rental_date: today.toISOString().split('T')[0], Return_date: retDate.toISOString().split('T')[0], Returned: false }); } } await conn.commit(); res.json({ message: 'Rented', rentals: rentalResults }); } catch (err) { await conn.rollback(); next(err); } finally { conn.release(); } });
+app.post('/api/member/rent-equipment', async (req, res, next) => {
+    if (!req.user || req.user.role !== 'member') return res.status(403).json({ error: 'Forbidden' });
+    const { items } = req.body;
+    const userId = req.user.userId;
+    if (!items || !Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'Invalid data.' });
+    const conn = await dbPool.getConnection();
+    try {
+        await conn.beginTransaction();
+        const rentalResults = [];
+        for(const item of items){
+            const [availEq]=await conn.query(`SELECT Equipment_id FROM EQUIPMENT WHERE Type=? AND Availability=TRUE LIMIT ? FOR UPDATE`,[item.type, item.quantity]);
+            if(availEq.length<item.quantity){await conn.rollback(); return res.status(400).json({error:`Not enough ${item.type}`});}
+            const today=new Date();
+            const retDate=new Date(today);
+            retDate.setDate(today.getDate()+7);
+            for(const eq of availEq){
+                const [rentRes]=await conn.query(`INSERT INTO EQUIPMENT_RENTAL (user_id, Equipment_id, Rental_date, Return_date, Returned) VALUES (?, ?, CURDATE(), ?, FALSE)`,[userId, eq.Equipment_id, retDate.toISOString().split('T')[0]]);
+                await conn.query(`UPDATE EQUIPMENT SET Availability=FALSE WHERE Equipment_id=?`,[eq.Equipment_id]);
+                const [typeRes]=await conn.query(`SELECT Type FROM EQUIPMENT WHERE Equipment_id=?`,[eq.Equipment_id]);
+                rentalResults.push({Rental_id: rentRes.insertId, Type:typeRes[0].Type, Rental_date:today.toISOString().split('T')[0], Return_date:retDate.toISOString().split('T')[0], Returned:false});
+            }
+        }
+        await conn.commit();
+        res.json({message:'Rented', rentals:rentalResults});
+    } catch(err){await conn.rollback(); next(err);} finally{conn.release();}
+});
+// POST /api/member/equipment/:rentalId/return
+app.post('/api/member/equipment/:rentalId/return', async (req, res, next) => {
+    if (!req.user || req.user.role !== 'member') return res.status(403).json({ error: 'Forbidden' });
+    const { rentalId } = req.params;
+    const userId = req.user.userId;
+    const conn = await dbPool.getConnection();
+    try {
+        await conn.beginTransaction();
+        // Check if the rental exists and belongs to the user
+        const [rental] = await conn.query(
+            'SELECT * FROM EQUIPMENT_RENTAL WHERE Rental_id = ? AND user_id = ? AND Returned = FALSE',
+            [rentalId, userId]
+        );
+        if (rental.length === 0) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'Rental not found or already returned.' });
+        }
+        // Mark as returned
+        await conn.query(
+            'UPDATE EQUIPMENT_RENTAL SET Returned = TRUE, Return_date = CURDATE() WHERE Rental_id = ?',
+            [rentalId]
+        );
+        // Make equipment available again
+        await conn.query(
+            'UPDATE EQUIPMENT SET Availability = TRUE WHERE Equipment_id = ?',
+            [rental[0].Equipment_id]
+        );
+        await conn.commit();
+        res.json({ message: 'Equipment returned successfully.' });
+    } catch (err) {
+        await conn.rollback();
+        next(err);
+    } finally {
+        conn.release();
+    }
+});
 
 // --- User Self-Service Routes ---
 // POST /api/user/change-password

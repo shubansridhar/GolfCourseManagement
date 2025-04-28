@@ -7,6 +7,17 @@ const API_BASE_URL = '/api';
 let currentTableStructure = [];
 let currentPrimaryKeyField = '';
 
+// near the top of the file (or wherever makes sense)
+const noAddTables = [
+    'MEMBER',
+    'MEMBER_TEE_TIME',
+    'EMPLOYEE',
+    'EQUIPMENT_RENTAL',
+    'GOLF_COURSE',
+    'HOLE',
+    // add any other table names here you want to disable “Add”
+  ];
+
 async function fetchTablesAndPopulateDashboard() {
     try {
         const placeholder = document.getElementById('dynamic-cards-placeholder');
@@ -54,7 +65,18 @@ async function loadTableData(tableName) {
         const selectedTableElement = document.getElementById('selected-table');
         if (selectedTableElement && tableName) { selectedTableElement.textContent = formatTableName(tableName); }
         const addRecordBtn = document.getElementById('add-record-btn');
-        if (addRecordBtn) { addRecordBtn.disabled = false; }
+        if (addRecordBtn) {
+        const t = tableName.toUpperCase();
+        if ( noAddTables.includes(t) ) {
+            // fully hide and disable
+            addRecordBtn.style.display  = 'none';
+            addRecordBtn.disabled       = true;
+        } else {
+            // show and enable
+            addRecordBtn.style.display  = '';
+            addRecordBtn.disabled       = false;
+        }
+        }
         window.currentTable = tableName;
         const dataTable = document.getElementById('data-table'); if (!dataTable) return; const thead = dataTable.querySelector('thead tr'); const tbody = dataTable.querySelector('tbody'); if (!thead || !tbody) return; thead.innerHTML = '<th>Loading...</th>'; tbody.innerHTML = '<tr><td colspan="1" class="loading-cell"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
         const [structureResponse, dataResponse] = await Promise.all([ authenticatedFetch(`${API_BASE_URL}/tables/${tableName}/structure`), authenticatedFetch(`${API_BASE_URL}/tables/${tableName}`)]); if (!structureResponse.ok || !dataResponse.ok) throw new Error('Failed fetch'); const structure = await structureResponse.json(); const tableData = await dataResponse.json(); currentTableStructure = structure; const pkCol = structure.find(c => c.Key === 'PRI'); currentPrimaryKeyField = pkCol ? pkCol.Field : (structure[0]?.Field || ''); if (!currentPrimaryKeyField) console.warn(`PK missing ${tableName}`); renderTableData(structure, tableData);

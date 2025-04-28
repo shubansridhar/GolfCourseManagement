@@ -1,5 +1,5 @@
 // public/js/data.js
-import { authenticatedFetch } from './auth.js';
+import { authenticatedFetch, currentUser, isAdmin } from './auth.js';
 import { showNotification, showTableView } from './views.js';
 
 const API_BASE_URL = '/api';
@@ -17,6 +17,15 @@ const noAddTables = [
     'HOLE',
     // add any other table names here you want to disable “Add”
   ];
+
+  // ---> ADDED Constants for Edit/Delete Permissions <---
+const noEditTables = [
+    'MEMBER', 'EMPLOYEE', 'MEMBER_TEE_TIME', 'EQUIPMENT_RENTAL', 'users'
+];
+const noDeleteTables = [
+    'MEMBER', 'EMPLOYEE', 'users', 'GOLF_COURSE', 'MEMBERSHIP_PLAN', 'EQUIPMENT_TYPE'
+];
+// ----------------------------------------------------
 
   async function fetchTablesAndPopulateDashboard() {
     try {
@@ -135,104 +144,53 @@ async function loadTableData(tableName) {
     } catch (error) { console.error('Err load table:', error); showNotification('Failed load table', 'error'); const tbody = document.querySelector('#data-table tbody'); if (tbody) tbody.innerHTML = `<tr><td colspan="1" class="error-table">Error loading data.</td></tr>`; }
 }
 
+// ---> MODIFIED: renderTableData uses permission lists/role for buttons <---
 function renderTableData(structure, tableData) {
-    // Define friendly column names explicitly
-    const friendlyColumnNames = {
-        'USER_ID': 'User ID',
-        'MEMBER_PLAN_ID': 'Membership Plan',
-        'LNAME': 'Last Name',
-        'FNAME': 'First Name',
-        'EMAIL': 'Email Address',
-        'PHONE_NUMBER': 'Phone Number',
-        'HANDICAP': 'Handicap',
-        'JOINDATE': 'Join Date',
-        'TEE_TIME_ID': 'Tee Time ID',
-        'EQUIPMENT_ID': 'Equipment ID',
-        'RENTAL_DATE': 'Rental Date',
-        'RETURN_DATE': 'Return Date',
-        'RETURNED': 'Returned',
-        'PLAN_ID': 'Plan ID',
-        'PLAN_TYPE': 'Plan Type',
-        'FEES': 'Fees',
-        'AVAILABILITY': 'Availability',
-        'COURSE_ID': 'Course ID',
-        'HOLE_ID': 'Hole ID',
-        'EMP_FNAME': 'First Name',
-        'EMP_LNAME': 'Last Name',
-        'ROLE': 'Role',
-        'RENTAL_DISCOUNT': 'Rental Discount',
-        'DISTANCE_TO_PIN': 'Distance to Pin',
-        'AVAILABLE_SLOTS': 'Available Slots',
-        'HIREDATE': 'Hire Date',
-        'COURSE_NAME': 'Course Name',
-        'RENTAL_ID': 'Rental ID',
-        'RENTAL_FEE': 'Rental Fee',
-        'PLAN_START_DATE': 'Plan Start Date',
-        'PLAN_END_DATE': 'Plan End Date'
-    };
-
-    const dataTable = document.getElementById('data-table');
-    if (!dataTable) return;
-
-    const thead = dataTable.querySelector('thead tr');
-    const tbody = dataTable.querySelector('tbody');
-    if (!thead || !tbody) return;
-
+    const dataTable = document.getElementById('data-table'); if (!dataTable) return;
+    const thead = dataTable.querySelector('thead tr'); const tbody = dataTable.querySelector('tbody'); if (!thead || !tbody) return;
     const columnCount = structure.length + 1;
+    const friendlyColumnNames = { USER_ID:'User ID', MEMBER_PLAN_ID:'Plan', LNAME:'Last Name', FNAME:'First Name', EMAIL:'Email Address', PHONE_NUMBER:'Phone Number', HANDICAP:'Hcp', JOINDATE:'Joined', TEE_TIME_ID:'TT ID', EQUIPMENT_ID:'Eq ID', RENTAL_DATE:'Rented', RETURN_DATE:'Due', RETURNED:'Ret?', PLAN_ID:'Plan ID', PLAN_TYPE:'Plan Type', FEES:'Fees', AVAILABILITY:'Avail?', COURSE_ID:'Course ID', HOLE_ID:'Hole ID', EMP_FNAME:'First Name', EMP_LNAME:'Last Name', ROLE:'App Role', RENTAL_DISCOUNT:'Discount', DISTANCE_TO_PIN:'Distance', AVAILABLE_SLOTS:'Slots', HIREDATE:'Hired', COURSE_NAME:'Course Name', RENTAL_ID:'Rental ID', RENTAL_FEE:'Fee', PLAN_START_DATE:'Start', PLAN_END_DATE:'End' };
+    thead.innerHTML = structure.map(col => `<th>${friendlyColumnNames[col.Field.toUpperCase()] || col.Field}</th>`).join('') + '<th>Actions</th>';
+    if (tableData.length === 0) { tbody.innerHTML = `<tr><td colspan="${columnCount}" class="empty-table">No records</td></tr>`; return; }
 
-    // Render headers with friendly names
-    thead.innerHTML = structure.map(col => {
-        const colName = col.Field.toUpperCase();
-        return `<th>${friendlyColumnNames[colName] || col.Field}</th>`;
-    }).join('') + '<th>Actions</th>';
-
-    // Render table data
-    if (tableData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${columnCount}" class="empty-table">No records</td></tr>`;
-        return;
-    }
+    const currentTableUpper = window.currentTable?.toUpperCase();
 
     tbody.innerHTML = tableData.map(row => {
-        const recordId = currentPrimaryKeyField ? row[currentPrimaryKeyField] : null;
-        const actionsDisabled = !recordId ? 'disabled' : '';
-        let actionButtonsHTML = `
-            <button class="btn-edit" ${actionsDisabled} title="Edit"><i class="fas fa-edit"></i></button>
-            <button class="btn-delete" ${actionsDisabled} title="Delete"><i class="fas fa-trash"></i></button>
-        `;
+         const recordId = currentPrimaryKeyField ? row[currentPrimaryKeyField] : null;
+         const actionsDisabled = !recordId ? 'disabled' : '';
+         let actionButtons = [];
 
-        if (window.currentTable.toUpperCase() === 'MEMBER' && recordId) {
+         // EDIT Button Logic
+         let showEditButton = !noEditTables.includes(currentTableUpper);
+         if (showEditButton && (currentTableUpper === 'GOLF_COURSE' || currentTableUpper === 'HOLE' || currentTableUpper === 'TEE_TIME')) {
+             if (!isAdmin()) { // Use imported isAdmin()
+                 showEditButton = false; // Only admins can edit these tables
+             }
+         }
+         if (showEditButton) {
+             actionButtons.push(`<button class="btn-edit" ${actionsDisabled} title="Edit"><i class="fas fa-edit"></i></button>`);
+         }
+
+         // ASSIGN PLAN Button (Only for MEMBER table and Employee role)
+         if (currentTableUpper === 'MEMBER' && currentUser?.role === 'employee') {
             const memberName = `${row.Fname || ''} ${row.Lname || ''}`.trim();
-            actionButtonsHTML += `
-                <button class="btn-assign-plan" data-userid="${recordId}" data-name="${escapeHtml(memberName)}" title="Assign/Change Plan" style="margin-left: 5px;"><i class="fas fa-id-card"></i></button>
-            `;
-        }
+             actionButtons.push(`<button class="btn-assign-plan" data-userid="${recordId}" data-name="${escapeHtml(memberName)}" title="Assign/Change Plan"><i class="fas fa-id-card"></i></button>`);
+         }
 
-        return `<tr ${recordId ? `data-id="${recordId}"` : ''}> 
-            ${structure.map(col => `<td>${escapeHtml(formatCellValue(row[col.Field]))}</td>`).join('')} 
-            <td class="actions">${actionButtonsHTML}</td>
-        </tr>`;
+         // DELETE Button (Show unless in noDeleteTables list)
+         if (!noDeleteTables.includes(currentTableUpper)) {
+            actionButtons.push(`<button class="btn-delete" ${actionsDisabled} title="Delete"><i class="fas fa-trash"></i></button>`);
+         }
+
+         return `<tr ${recordId ? `data-id="${recordId}"` : ''}> ${structure.map(col => `<td>${escapeHtml(formatCellValue(row[col.Field]))}</td>`).join('')} <td class="actions">${actionButtons.join('&nbsp;')}</td></tr>`;
     }).join('');
 
-    // Attach standard listeners
+    // Attach listeners
     tbody.querySelectorAll('.btn-edit').forEach(btn => { btn.addEventListener('click', function (e) { e.stopPropagation(); const row = this.closest('tr'); if (row && row.dataset.id) editRecord(row.dataset.id); }); });
     tbody.querySelectorAll('.btn-delete').forEach(btn => { btn.addEventListener('click', function (e) { e.stopPropagation(); const row = this.closest('tr'); if (row && row.dataset.id) deleteRecord(row.dataset.id); }); });
-
-    // ---> Attach listener for new Assign Plan button <---
-    tbody.querySelectorAll('.btn-assign-plan').forEach(btn => {
-        btn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            const userId = this.dataset.userid;
-            const userName = this.dataset.name; // Get name from button data attribute
-            if (userId) {
-                openAssignPlanModal(userId, userName); // Call function to open modal
-            } else {
-                console.error("Missing user ID on assign plan button");
-                showNotification("Cannot assign plan: User ID missing.", "error");
-            }
-        });
-    });
-    // ---------------------------------------------------
+    tbody.querySelectorAll('.btn-assign-plan').forEach(btn => { btn.addEventListener('click', function (e) { e.stopPropagation(); const userId = this.dataset.userid; const userName = this.dataset.name; if (userId) { openAssignPlanModal(userId, userName); } else { console.error("Missing user ID"); showNotification("Cannot assign plan: User ID missing.","error"); }}); });
 }
+
 
 
 function formatCellValue(value) { if (value === null || value === undefined) return '-'; const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(.\d+)?Z?$/; if (typeof value === 'string' && dateRegex.test(value)) { const date = new Date(value); if (!isNaN(date.getTime())) return date.toLocaleDateString(); } if (typeof value === 'boolean') return value ? 'Yes' : 'No'; if (typeof value === 'object' && value !== null && value.type === 'Buffer' && Array.isArray(value.data)) return value.data[0] === 1 ? 'Yes' : 'No'; return value.toString(); }
@@ -241,19 +199,39 @@ async function loadAndRenderUsers() { const container = document.getElementById(
 
 function escapeHtml(unsafe) { if (unsafe === null || unsafe === undefined) return ''; return unsafe.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
 
-async function openAddRecordModal() {
+// --- MODAL AND CRUD FUNCTIONS ---
+
+// ---> REPLACED openAddRecordModal with combined openRecordModal <---
+async function openRecordModal(recordId = null) {
+    const isEditing = recordId !== null;
     const tableName = window.currentTable; if (!tableName) { showNotification("No table selected.", "warning"); return; }
-    let structure = currentTableStructure; if (!structure || structure.length === 0) { try { const response = await authenticatedFetch(`${API_BASE_URL}/tables/${tableName}/structure`); if (!response.ok) throw new Error('Failed fetch structure'); structure = await response.json(); currentTableStructure = structure; const pkCol = structure.find(c => c.Key === 'PRI'); currentPrimaryKeyField = pkCol ? pkCol.Field : (structure[0]?.Field || ''); } catch (error) { showNotification(error.message, "error"); return; } }
-    const modal = document.getElementById('add-record-modal'); const modalTitle = document.getElementById('modal-title'); const form = document.getElementById('add-record-form'); if (!modal || !modalTitle || !form) { console.error("Add modal elements missing."); return; } modalTitle.textContent = `Add New Record to ${formatTableName(tableName)}`; form.innerHTML = '';
-    structure.forEach(col => { if (col.Key === 'PRI' && col.Extra?.toLowerCase().includes('auto_increment')) return; const formGroup = document.createElement('div'); formGroup.className = 'form-group'; const label = document.createElement('label'); label.htmlFor = `add-${col.Field}`; label.textContent = col.Field; if (col.Null === 'NO' && !col.Extra?.toLowerCase().includes('auto_increment')) { label.textContent += ' *'; } formGroup.appendChild(label); let input; const fieldType = col.Type.toLowerCase(); if (fieldType.includes('text')) { input = document.createElement('textarea'); input.rows = 3; } else if (fieldType.includes('date')) { input = document.createElement('input'); input.type = 'date'; } else if (fieldType.includes('time')) { input = document.createElement('input'); input.type = 'time'; input.step = '1'; } else if (fieldType.includes('datetime') || fieldType.includes('timestamp')) { input = document.createElement('input'); input.type = 'datetime-local'; input.step = '1'; } else if (fieldType.includes('int') || fieldType.includes('decimal') || fieldType.includes('float') || fieldType.includes('double')) { input = document.createElement('input'); input.type = 'number'; if (!fieldType.includes('int')) input.step = 'any'; } else if (fieldType.includes('enum') || fieldType.includes('boolean') || fieldType.includes('tinyint(1)')) { input = document.createElement('select'); const defaultOpt = document.createElement('option'); defaultOpt.value = ""; defaultOpt.textContent = "-- Select --"; input.appendChild(defaultOpt); if (fieldType.includes('boolean') || fieldType.includes('tinyint(1)')) { const optT = document.createElement('option'); optT.value = "1"; optT.textContent = "Yes"; input.appendChild(optT); const optF = document.createElement('option'); optF.value = "0"; optF.textContent = "No"; input.appendChild(optF); } else { const matches = fieldType.match(/enum\((.*)\)/); if (matches && matches[1]) { matches[1].split(',').map(v => v.trim().replace(/^'|'$/g, '')).forEach(val => { const option = document.createElement('option'); option.value = val; option.textContent = val; input.appendChild(option); }); } else { input = document.createElement('input'); input.type = 'text'; } } } else { input = document.createElement('input'); input.type = 'text'; } input.id = `add-${col.Field}`; input.name = col.Field; formGroup.appendChild(input); form.appendChild(formGroup); }); modal.style.display = 'block';
+    let structure = currentTableStructure; if (!structure || structure.length === 0) { try { const r=await authenticatedFetch(`${API_BASE_URL}/tables/${tableName}/structure`); if(!r.ok)throw new Error('Failed fetch structure'); structure=await r.json(); currentTableStructure=structure; const p=structure.find(c=>c.Key==='PRI'); currentPrimaryKeyField=p?p.Field:(structure[0]?.Field||''); } catch(e){showNotification(e.message,"error");return;} } if(!currentPrimaryKeyField&&isEditing){showNotification("Cannot edit: PK unknown.","error");return;}
+    let currentData = null; if(isEditing){ try { const url=`${API_BASE_URL}/tables/${tableName}/${recordId}?primaryKey=${encodeURIComponent(currentPrimaryKeyField)}`; const r=await authenticatedFetch(url); if(!r.ok){const d=await r.json().catch(()=>({})); throw new Error(d.error||`Record fetch failed`);} currentData=await r.json(); } catch(e){showNotification(e.message,"error");return;} }
+    const modal=document.getElementById('add-record-modal'); const modalTitle=document.getElementById('modal-title'); const form=document.getElementById('add-record-form'); const submitButton=document.getElementById('submit-record'); if (!modal||!modalTitle||!form||!submitButton){console.error("Add/Edit modal elements missing."); return;}
+    modalTitle.textContent=`${isEditing?'Edit':'Add New'} Record in ${formatTableName(tableName)}`; submitButton.textContent=isEditing?'Update Record':'Submit'; form.innerHTML=''; form.dataset.editingId=isEditing?recordId:'';
+    structure.forEach(col => { const isPK=col.Field===currentPrimaryKeyField; const isAI=col.Extra?.toLowerCase().includes('auto_increment'); if(isPK&&isAI&&!isEditing) return; const fg=document.createElement('div'); fg.className='form-group'; const l=document.createElement('label'); l.htmlFor=`record-${col.Field}`; l.textContent=col.Field; if(col.Null==='NO'&&!isAI&&!isPK)l.textContent+=' *'; fg.appendChild(l); let i; const fT=col.Type.toLowerCase(); if(fT.includes('text')){i=document.createElement('textarea');i.rows=3;}else if(fT.includes('date')){i=document.createElement('input');i.type='date';}else if(fT.includes('time')){i=document.createElement('input');i.type='time';i.step='1';}else if(fT.includes('datetime')||fT.includes('timestamp')){i=document.createElement('input');i.type='datetime-local';i.step='1';}else if(fT.includes('int')||fT.includes('decimal')||fT.includes('float')||fT.includes('double')){i=document.createElement('input');i.type='number';if(!fT.includes('int'))i.step='any';}else if(fT.includes('enum')||fT.includes('boolean')||fT.includes('tinyint(1)')){i=document.createElement('select'); const dO=document.createElement('option'); dO.value=""; dO.textContent="-- Select --"; i.appendChild(dO); if(fT.includes('boolean')||fT.includes('tinyint(1)')){const oT=document.createElement('option');oT.value="1";oT.textContent="Yes";i.appendChild(oT); const oF=document.createElement('option');oF.value="0";oF.textContent="No";i.appendChild(oF);}else{const m=fT.match(/enum\((.*)\)/);if(m&&m[1]){m[1].split(',').map(v=>v.trim().replace(/^'|'$/g,'')).forEach(val=>{const o=document.createElement('option');o.value=val;o.textContent=val;i.appendChild(o);});}else{i=document.createElement('input');i.type='text';}}}else{i=document.createElement('input');i.type='text';} i.id=`record-${col.Field}`; i.name=col.Field; if(isEditing&&currentData&&currentData[col.Field]!==null&&currentData[col.Field]!==undefined){let v=currentData[col.Field]; if((i.type==='date')&&v){try{v=new Date(v).toISOString().split('T')[0];}catch(e){}}else if((i.type==='datetime-local')&&v){try{const dt=new Date(v);v=dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2)+'T'+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2)+':'+('0'+dt.getSeconds()).slice(-2);}catch(e){}}else if(i.type==='time'&&v){v=String(v).substring(0,8);} i.value=v;} if(isPK&&isEditing){i.readOnly=true;i.style.backgroundColor="#e9ecef";} fg.appendChild(i); form.appendChild(fg); });
+    modal.style.display='block';
 }
 
-async function handleAddRecordSubmit() {
-    const tableName = window.currentTable; const form = document.getElementById('add-record-form'); if (!tableName || !form) { showNotification("Cannot submit: context missing.", "error"); return; }
-    const formData = new FormData(form); const dataToSubmit = {}; let isValid = true; let missingRequiredFields = [];
-    for (const [key, value] of formData.entries()) { const fieldStructure = currentTableStructure.find(col => col.Field === key); if (!fieldStructure) continue; const allowEmpty = fieldStructure.Null === 'YES'; const isAutoIncrement = fieldStructure.Extra?.toLowerCase().includes('auto_increment'); if (value === '' && !allowEmpty && !isAutoIncrement) { isValid = false; missingRequiredFields.push(key); } else if (value === '' && allowEmpty) { dataToSubmit[key] = null; } else if (value !== '') { dataToSubmit[key] = value; } }
-    if (!isValid) { showNotification(`Fill required: ${missingRequiredFields.join(', ')}`, "error"); return; } if (Object.keys(dataToSubmit).length === 0 && currentTableStructure.some(col => !col.Extra?.toLowerCase().includes('auto_increment'))) { showNotification("No data entered.", "warning"); return; }
-    try { const response = await authenticatedFetch(`${API_BASE_URL}/tables/${tableName}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dataToSubmit) }); const result = await response.json(); if (!response.ok) { throw new Error(result.error || `Server error ${response.status}`); } showNotification('Record added!', 'success'); document.getElementById('add-record-modal').style.display = 'none'; loadTableData(tableName); } catch (error) { console.error("Error adding record:", error); showNotification(`Error adding: ${error.message}`, 'error'); }
+// ---> REPLACED handleAddRecordSubmit with combined handleModalFormSubmit <---
+async function handleModalFormSubmit() {
+    // ---> ADDED Log: Check if function is called <---
+    console.log("handleModalFormSubmit called!");
+
+    const tableName = window.currentTable; const form = document.getElementById('add-record-form'); if (!tableName || !form) { showNotification("Cannot submit.", "error"); return; }
+    const editingId = form.dataset.editingId; const isEditing = !!editingId; 
+
+    // ---> ADDED Log: Check if edit mode is detected <---
+    console.log(`handleModalFormSubmit: isEditing = ${isEditing}, editingId = ${editingId}`);
+    
+    const formData = new FormData(form); const dataToSubmit = {}; let isValid = true; let missing = [];
+
+    
+    for(const [key, value] of formData.entries()){const field=currentTableStructure.find(c=>c.Field===key); if(!field)continue; if(isEditing&&key===currentPrimaryKeyField)continue; const allowE=field.Null==='YES'; const isAI=field.Extra?.toLowerCase().includes('auto_increment'); if(value===''&&!allowE&&!isAI&&!(isEditing&&key===currentPrimaryKeyField)){isValid=false; missing.push(key);}else if(value===''&&allowE){dataToSubmit[key]=null;}else if(value!==''){dataToSubmit[key]=value;}}
+    if(!isValid){showNotification(`Fill required: ${missing.join(', ')}`, "error"); return;} if(Object.keys(dataToSubmit).length===0){showNotification("No data/changes.", "warning"); if (isEditing) document.getElementById('add-record-modal').style.display='none'; return;}
+    const url = isEditing ? `${API_BASE_URL}/tables/${tableName}/${editingId}?primaryKey=${encodeURIComponent(currentPrimaryKeyField)}` : `${API_BASE_URL}/tables/${tableName}`; const method = isEditing ? 'PUT' : 'POST';
+    console.log(`Submitting (${method}) to ${url}:`, dataToSubmit);
+    try{const res=await authenticatedFetch(url,{method:method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(dataToSubmit)}); const result=await res.json(); if(!res.ok){throw new Error(result.error||`Server error ${res.status}`);} showNotification(`Record ${isEditing?'updated':'added'}!`,'success'); document.getElementById('add-record-modal').style.display='none'; loadTableData(tableName);}catch(err){console.error(`Err ${isEditing?'updating':'adding'}:`, err); showNotification(`Error: ${err.message}`,'error');}
 }
 
 async function deleteRecord(recordId) {
@@ -261,7 +239,25 @@ async function deleteRecord(recordId) {
     try { const url = `${API_BASE_URL}/tables/${tableName}/${recordId}?primaryKey=${encodeURIComponent(pkField)}`; const response = await authenticatedFetch(url, { method: 'DELETE' }); const result = await response.json(); if (!response.ok) { throw new Error(result.error || `Server error ${response.status}`); } showNotification('Deleted!', 'success'); loadTableData(tableName); } catch (error) { console.error("Error deleting:", error); showNotification(`Error deleting: ${error.message}`, 'error'); }
 }
 
-function editRecord(recordId) { console.log('Edit record:', recordId); showNotification("Edit functionality not implemented yet.", "info"); /* TODO */ }
+// ---> MODIFIED: editRecord now calls openRecordModal after permission check <---
+function editRecord(recordId) {
+    console.log('Edit button for record:', recordId, 'in table', window.currentTable);
+    const tableNameUpper = window.currentTable?.toUpperCase();
+    // Check if generally editable
+    let canEdit = !noEditTables.includes(tableNameUpper);
+    // Apply specific admin-only rule
+    if (canEdit && (tableNameUpper === 'GOLF_COURSE' || tableNameUpper === 'HOLE' || tableNameUpper === 'TEE_TIME')) {
+        if (!isAdmin()) { // Use imported isAdmin()
+            canEdit = false;
+        }
+    }
+    if (!canEdit) {
+         showNotification(`Editing for ${formatTableName(window.currentTable)} requires different permissions or is handled elsewhere.`, "warning");
+         return;
+    }
+    openRecordModal(recordId); // Open the modal in edit mode
+}
+// ------------------------------------------------------------------------
 
 async function handleAddAdminSubmit() {
     const usernameInput = document.getElementById('add-admin-username'); const passwordInput = document.getElementById('add-admin-password'); const errorDiv = document.getElementById('add-admin-error'); errorDiv.style.display = 'none'; const username = usernameInput.value.trim(); const password = passwordInput.value; if (!username || !password) { errorDiv.textContent = 'Username/password required.'; errorDiv.style.display = 'block'; return; } if (password.length < 4) { errorDiv.textContent = 'Password min 4 chars.'; errorDiv.style.display = 'block'; return; }
@@ -390,15 +386,10 @@ async function handleAssignPlanSubmit() {
 
 
 
-// Export necessary functions
+// ---> UPDATED Exports <---
 export {
-    fetchTablesAndPopulateDashboard,
-    loadTableData,
-    loadAndRenderUsers,
-    openAddRecordModal,
-    handleAddRecordSubmit,
-    handleAddAdminSubmit,
-    handleAddEmployeeSubmit,
-    openAssignPlanModal,
-    handleAssignPlanSubmit
+    fetchTablesAndPopulateDashboard, loadTableData, loadAndRenderUsers,
+    openRecordModal,       // Export combined modal function
+    handleModalFormSubmit, // Export combined submit handler
+    handleAddAdminSubmit, handleAddEmployeeSubmit, handleAssignPlanSubmit
 };

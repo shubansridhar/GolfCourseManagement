@@ -257,8 +257,49 @@ app.get('/api/tables/MANAGES/structure', authenticateToken, async (req, res, nex
 app.get('/api/tables', async (req, res, next) => { try { const [r] = await dbPool.query("SHOW TABLES"); const t = r.map(rw => Object.values(rw)[0]).filter(n => n !== 'users'); res.json(t); } catch (err) { next(err); } });
 app.get('/api/tables/:tableName/structure', async (req, res, next) => { const tN = req.params.tableName; if (!tN.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid name.' }); if (tN.toLowerCase() === 'users') return res.status(403).json({ error: 'Denied.' }); const q = `DESCRIBE \`${tN}\``; try { const [r] = await dbPool.query(q); res.json(r); } catch (err) { if (err.code === 'ER_NO_SUCH_TABLE') return res.status(404).json({ error: `Table '${tN}' not found.` }); next(err); } });
 app.get('/api/tables/:tableName', async (req, res, next) => { const tN = req.params.tableName; if (!tN.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid name.' }); if (tN.toLowerCase() === 'users') return res.status(403).json({ error: 'Denied.' }); const q = `SELECT * FROM \`${tN}\``; try { const [r] = await dbPool.query(q); res.json(r); } catch (err) { if (err.code === 'ER_NO_SUCH_TABLE') return res.status(404).json({ error: `Table '${tN}' not found.` }); next(err); } });
+
+// ---> ADDED: GET /api/tables/:tableName/:id (Fetch single record) <---
+app.get('/api/tables/:tableName/:id', async (req, res, next) => {
+    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) { return res.status(403).json({ error: 'Forbidden.' }); }
+    const { tableName, id } = req.params; const { primaryKey } = req.query;
+    if (!tableName.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid table name.' });
+    if (tableName.toLowerCase() === 'users'||tableName.toLowerCase() === 'manages') return res.status(403).json({ error: 'Denied.' });
+    if (!primaryKey || !primaryKey.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'PK query param required.' });
+    if (!id) return res.status(400).json({ error: 'ID required.' });
+    const query = `SELECT * FROM \`${tableName}\` WHERE \`${primaryKey}\` = ?`;
+    try { const [results] = await dbPool.query(query, [id]); if (results.length === 0) return res.status(404).json({ error: `Record not found.` }); res.json(results[0]); }
+    catch (err) { if (err.code === 'ER_NO_SUCH_TABLE') return res.status(404).json({ error: `Table '${tableName}' not found.` }); next(err); }
+});
+
 // POST /api/tables/:tableName (Add record - Role check Added)
 app.post('/api/tables/:tableName', async (req, res, next) => { if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) { return res.status(403).json({ error: 'Forbidden' }); } const tN = req.params.tableName; if (!tN.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid name.' }); if (tN.toLowerCase() === 'users') return res.status(403).json({ error: 'Denied.' }); const d = req.body; const cD = {}; Object.keys(d).forEach(k => { if (d[k] !== '') cD[k] = d[k]; }); if (Object.keys(cD).length === 0) return res.status(400).json({ error: 'No data.' }); const q = `INSERT INTO \`${tN}\` SET ?`; try { const [r] = await dbPool.query(q, cD); res.status(201).json({ message: 'Inserted', insertId: r.insertId }); } catch (err) { next(err); } });
+
+
+// ---> ADDED: PUT /api/tables/:tableName/:id (Update record with specific table checks) <---
+app.put('/api/tables/:tableName/:id', async (req, res, next) => {
+    const { tableName, id } = req.params; const { primaryKey } = req.query; const dataToUpdate = req.body; const userRole = req.user?.role;
+    if (!tableName.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid table name.' });
+    if (tableName.toLowerCase() === 'users'||tableName.toLowerCase() === 'manages') return res.status(403).json({ error: 'Denied.' });
+    if (!primaryKey || !primaryKey.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'PK query param required.' });
+    if (!id) return res.status(400).json({ error: 'ID required.' });
+    if (!dataToUpdate || Object.keys(dataToUpdate).length === 0) return res.status(400).json({ error: 'No update data.' });
+
+    let authorized = false; const tableUpper = tableName.toUpperCase();
+    if (tableUpper === 'GOLF_COURSE' || tableUpper === 'HOLE' || tableUpper === 'TEE_TIME') {
+        if (userRole === 'admin') authorized = true; // Admin only for these
+    } else { if (userRole === 'admin' || userRole === 'employee') authorized = true; } // Admin or Employee for others
+    if (!authorized) return res.status(403).json({ error: `Forbidden: Role (${userRole}) cannot update ${tableName}.` });
+
+    delete dataToUpdate[primaryKey]; // Don't update PK
+    if (Object.keys(dataToUpdate).length === 0) return res.status(400).json({ error: 'No valid fields to update.' });
+
+    const query = `UPDATE \`${tableName}\` SET ? WHERE \`${primaryKey}\` = ?`;
+    try { const [results] = await dbPool.query(query, [dataToUpdate, id]); if (results.affectedRows === 0) return res.status(404).json({ error: `Record not found or no changes made.` }); if (results.changedRows === 0) return res.json({ message: `Record ${id} found, no changes made.` }); res.json({ message: `Record ${id} updated`, changedRows: results.changedRows }); }
+    catch (err) { console.error("Update Error:", err); next(err); }
+});
+
+
+
 // DELETE /api/tables/:tableName/:id (Delete record - Role check Added)
 app.delete('/api/tables/:tableName/:id', async (req, res, next) => { if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) { return res.status(403).json({ error: 'Forbidden' }); } const tN = req.params.tableName; const id = req.params.id; const pK = req.query.primaryKey; if (!tN.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid name.' }); if (tN.toLowerCase() === 'users') return res.status(403).json({ error: 'Denied.' }); if (!pK || !pK.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'PK required.' }); if (!id) return res.status(400).json({ error: 'ID required.' }); const q = `DELETE FROM \`${tN}\` WHERE \`${pK}\` = ?`; try { const [r] = await dbPool.query(q, [id]); if (r.affectedRows === 0) return res.status(404).json({ error: `Record ${id} not found.` }); res.json({ message: 'Deleted', affectedRows: r.affectedRows }); } catch (err) { if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_ROW_IS_REFERENCED') { return res.status(409).json({ error: 'Cannot delete: Record referenced.' }); } next(err); } });
 

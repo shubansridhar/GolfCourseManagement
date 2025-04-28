@@ -1,6 +1,5 @@
 // public/js/app.js
 
-// Import necessary functions from other modules
 import * as auth from './auth.js';
 import * as views from './views.js';
 import * as data from './data.js';
@@ -8,18 +7,13 @@ import * as member from './member.js';
 import * as employee from './employee.js';
 import * as statistics from './statistics.js';
 
-
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM fully loaded and parsed');
 
     // --- Initial Setup ---
-    // Check token - TODO: Add proper token validation later via a backend call
     const token = localStorage.getItem('token');
     if (token) {
-        console.log("Token found, attempting initial view (validation needed)");
-        // Ideally, validate token with backend here and call handleLoginSuccess if valid
-        // fetch('/api/auth/validate-token', { headers: {'Authorization': `Bearer ${token}`} })...
-        // For now, default to auth view if validation isn't implemented
+        console.log("Token found, initial validation needed (TODO)");
         views.showAuthView();
     } else {
         views.showAuthView();
@@ -33,25 +27,27 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('login-form')?.addEventListener('submit', handleLogin);
     document.getElementById('signup-form')?.addEventListener('submit', auth.handleSignup);
 
+    // ---> CHANGE 'input' to 'change' for the role dropdown listener <---
+    const roleDropdown = document.getElementById('signup-role');
+    if (roleDropdown) {
+        roleDropdown.addEventListener('change', handleRoleChange); // Use 'change' event
+        console.log("Event listener ('change') attached to #signup-role");
+    } else {
+        console.error("#signup-role dropdown not found!");
+    }
+    // -------------------------------------------------------------------
+
     // Header Buttons
     document.getElementById('logout-btn')?.addEventListener('click', auth.handleLogout);
     document.getElementById('statistics-btn')?.addEventListener('click', views.showStatisticsView);
     document.getElementById('account-btn')?.addEventListener('click', openAccountModal);
 
-    // Dashboard Navigation (User Management Card)
-    document.getElementById('user-management-card')?.addEventListener('click', () => {
-        if (auth.isAdmin()) {
-            views.showUserManagementView(); // Show the view
-            data.loadAndRenderUsers();      // Load the data for the view
-        } else {
-            views.showNotification('Access Denied: Admin role required.', 'error');
-        }
-    });
-    // NOTE: Dynamic dashboard card listeners are added in data.js
+    // Dashboard Navigation
+    document.getElementById('user-management-card')?.addEventListener('click', () => { if (auth.isAdmin()) { views.showUserManagementView(); data.loadAndRenderUsers(); } else { views.showNotification('Access Denied', 'error'); } });
 
     // Table View Navigation & Actions
     document.getElementById('back-to-dashboard-btn')?.addEventListener('click', handleBackToDashboard);
-    document.getElementById('add-record-btn')?.addEventListener('click', data.openAddRecordModal); // Listener for Add Record button
+    document.getElementById('add-record-btn')?.addEventListener('click', data.openAddRecordModal);
 
     // Statistics View Navigation
     document.getElementById('back-to-dashboard-from-stats-btn')?.addEventListener('click', handleBackToDashboard);
@@ -60,137 +56,55 @@ document.addEventListener('DOMContentLoaded', () => {
     // User Management View Navigation & Actions
     document.getElementById('back-to-dashboard-from-users-btn')?.addEventListener('click', handleBackToDashboard);
     document.getElementById('refresh-users-btn')?.addEventListener('click', data.loadAndRenderUsers);
-    document.getElementById('add-admin-btn')?.addEventListener('click', openAddAdminModal); // Listener for Add Admin button
+    document.getElementById('add-admin-btn')?.addEventListener('click', openAddAdminModal);
 
     // Employee View Refresh
     document.getElementById('refresh-employee-data-btn')?.addEventListener('click', employee.loadEmployeeData);
 
     // Member View Setup & Refresh
-    member.setupMemberEventListeners(); // Adds its internal listeners
+    member.setupMemberEventListeners();
     document.getElementById('refresh-member-data-btn')?.addEventListener('click', member.loadMemberData);
 
 
     // Modals Setup
     setupModalListeners();
-
-    // Listener for Add Record Modal Submit Button
     document.getElementById('submit-record')?.addEventListener('click', data.handleAddRecordSubmit);
-    // Listener for Add Admin Modal Submit Button
     document.getElementById('submit-new-admin')?.addEventListener('click', data.handleAddAdminSubmit);
+    document.getElementById('change-password-form')?.addEventListener('submit', handleChangePassword);
 
 
 }); // End DOMContentLoaded
 
 // --- Handler Functions ---
 
-async function handleLogin(e) {
-    e.preventDefault();
-    const username = document.getElementById('login-username').value;
-    const password = document.getElementById('login-password').value;
-    const loginError = document.getElementById('login-error');
-    loginError.style.display = 'none';
-    try {
-        const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Login failed');
-        handleLoginSuccess(result);
-    } catch (error) { console.error('Login error:', error); loginError.textContent = error.message; loginError.style.display = 'block'; }
-}
+function handleRoleChange(e) {
+    const selectedRole = e.target.value;
+    console.log("Role changed to:", selectedRole); // Keep this log
+    const memberFieldsDiv = document.getElementById('member-fields');
+    const fnameInput = document.getElementById('signup-fname');
+    const lnameInput = document.getElementById('signup-lname');
 
-function handleLoginSuccess(loginData) {
-    localStorage.setItem('token', loginData.token);
-    auth.setCurrentUser({ username: loginData.username, role: loginData.role }); // Store user info locally
-    // Navigate to appropriate view AND load its initial data
-    if (auth.isAdmin()) {
-        views.showDashboardView();
-        data.fetchTablesAndPopulateDashboard(); // Load admin dashboard tables
-    } else if (auth.isEmployee()) {
-        views.showEmployeeView(); // Calls loadEmployeeData internally via views.js
+    if (memberFieldsDiv) {
+        if (selectedRole === 'member') {
+            console.log("Showing member fields"); // Keep this log
+            memberFieldsDiv.style.display = 'block';
+            if (fnameInput) fnameInput.required = true;
+            if (lnameInput) lnameInput.required = true;
+        } else {
+            console.log("Hiding member fields"); // Keep this log
+            memberFieldsDiv.style.display = 'none';
+            if (fnameInput) fnameInput.required = false;
+            if (lnameInput) lnameInput.required = false;
+        }
     } else {
-        views.showMemberView(); // Calls loadMemberData internally via views.js
-    }
-    views.updateHeader(); // Update header display immediately
-}
-
-// Handler for "Back to Dashboard" buttons
-function handleBackToDashboard() {
-     if (auth.isAdmin()) {
-        views.showDashboardView();
-        // Re-fetch tables for admin dashboard for consistency
-        data.fetchTablesAndPopulateDashboard();
-    } else if (auth.isEmployee()) {
-         // Go back to employee portal view
-         views.showEmployeeView();
-         // Optionally refresh employee data if needed
-         // employee.loadEmployeeData();
-    } else {
-         // Members shouldn't normally see these buttons
-         views.showMemberView();
+        console.error("CRITICAL: Could not find the #member-fields container div!");
     }
 }
 
-// Opens the Account Settings Modal
-function openAccountModal() {
-    const accountModal = document.getElementById('account-modal');
-    if (accountModal && auth.currentUser) {
-        document.getElementById('account-username').textContent = auth.currentUser.username;
-        document.getElementById('account-role').textContent = auth.currentUser.role;
-        document.getElementById('change-password-form')?.reset();
-        document.getElementById('change-password-error').style.display = 'none';
-        accountModal.style.display = 'block';
-    }
-}
-
-// Opens the Add Admin Modal
-function openAddAdminModal() {
-    const modal = document.getElementById('add-admin-modal');
-    if (modal) {
-        document.getElementById('add-admin-form')?.reset();
-        document.getElementById('add-admin-error').style.display = 'none';
-        modal.style.display = 'block';
-    } else {
-        console.error("Add admin modal (#add-admin-modal) not found");
-    }
-}
-
-// Setup listeners for all modal close buttons and specific forms
-function setupModalListeners() {
-     // General close buttons (using class 'close' on the span/button)
-     document.querySelectorAll('.modal .close').forEach(btn => {
-         btn.addEventListener('click', () => {
-             btn.closest('.modal').style.display = 'none';
-         });
-     });
-     // Specific cancel button for add record modal by ID
-     document.getElementById('cancel-record')?.addEventListener('click', () => {
-          document.getElementById('add-record-modal').style.display = 'none';
-     });
-
-     // Change Password Form Submission
-     document.getElementById('change-password-form')?.addEventListener('submit', handleChangePassword);
-
-     // Add other specific modal form submit/cancel listeners here if needed...
-     // e.g., Profile Edit, Plan Change, Tee Time, Equipment Rental modals
-}
-
-// Handles password change submission (Requires backend endpoint)
-async function handleChangePassword(e) {
-    e.preventDefault();
-    const currentPassword = document.getElementById('current-password').value;
-    const newPassword = document.getElementById('new-password').value;
-    const confirmNewPassword = document.getElementById('confirm-new-password').value;
-    const errorDiv = document.getElementById('change-password-error');
-    errorDiv.style.display = 'none';
-    if (newPassword !== confirmNewPassword) { errorDiv.textContent = "New passwords don't match."; errorDiv.style.display = 'block'; return; }
-    // Add length check consistent with signup
-    if (newPassword.length < 4) { errorDiv.textContent = "New password must be at least 4 characters."; errorDiv.style.display = 'block'; return; }
-    if (!currentPassword || !newPassword) { errorDiv.textContent = "All password fields required."; errorDiv.style.display = 'block'; return; }
-    try {
-        // !!! Ensure '/api/user/change-password' endpoint exists on backend !!!
-        const response = await auth.authenticatedFetch('/api/user/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword, newPassword }) });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Failed to update password');
-        views.showNotification('Password updated successfully!', 'success');
-        document.getElementById('account-modal').style.display = 'none';
-    } catch (error) { console.error("Change password error:", error); errorDiv.textContent = error.message; errorDiv.style.display = 'block'; }
-}
+async function handleLogin(e) { e.preventDefault(); const u=document.getElementById('login-username').value; const p=document.getElementById('login-password').value; const err=document.getElementById('login-error'); err.style.display='none'; try { const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username:u, password:p }) }); const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Login failed'); handleLoginSuccess(d); } catch (error) { console.error('Login err:', error); err.textContent = error.message; err.style.display = 'block'; } }
+function handleLoginSuccess(loginData) { localStorage.setItem('token', loginData.token); auth.setCurrentUser({ username: loginData.username, role: loginData.role, userId: loginData.userId }); if (auth.isAdmin()) { views.showDashboardView(); data.fetchTablesAndPopulateDashboard(); } else if (auth.isEmployee()) { views.showEmployeeView(); } else { views.showMemberView(); } views.updateHeader(); }
+function handleBackToDashboard() { if (auth.isAdmin()) { views.showDashboardView(); data.fetchTablesAndPopulateDashboard(); } else if (auth.isEmployee()) { views.showEmployeeView(); } else { views.showMemberView(); } }
+function openAccountModal() { const m = document.getElementById('account-modal'); if (m && auth.currentUser) { document.getElementById('account-username').textContent = auth.currentUser.username; document.getElementById('account-role').textContent = auth.currentUser.role; document.getElementById('change-password-form')?.reset(); document.getElementById('change-password-error').style.display = 'none'; m.style.display = 'block'; } }
+function openAddAdminModal() { const m = document.getElementById('add-admin-modal'); if (m) { document.getElementById('add-admin-form')?.reset(); document.getElementById('add-admin-error').style.display = 'none'; m.style.display = 'block'; } else { console.error("Add admin modal missing"); } }
+function setupModalListeners() { document.querySelectorAll('.modal .close').forEach(btn => { btn.addEventListener('click', (e) => { e.preventDefault(); btn.closest('.modal').style.display = 'none'; }); }); document.getElementById('cancel-record')?.addEventListener('click', () => { document.getElementById('add-record-modal').style.display = 'none'; }); /* submit listeners attached directly */ }
+async function handleChangePassword(e) { e.preventDefault(); const cur=document.getElementById('current-password').value; const nw=document.getElementById('new-password').value; const cnf=document.getElementById('confirm-new-password').value; const err=document.getElementById('change-password-error'); err.style.display='none'; if(nw!==cnf){err.textContent="New passwords don't match.";err.style.display='block';return;} if(nw.length<4){err.textContent="New password min 4 chars.";err.style.display='block';return;} if(!cur||!nw){err.textContent="All fields required.";err.style.display='block';return;} try { const resp = await auth.authenticatedFetch('/api/user/change-password', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword:cur, newPassword:nw})}); const res = await resp.json(); if (!resp.ok) throw new Error(res.error||'Update failed'); views.showNotification('Password updated!', 'success'); document.getElementById('account-modal').style.display='none'; } catch(error){console.error("Change pw error:", error); err.textContent=error.message; err.style.display='block';} }

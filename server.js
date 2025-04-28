@@ -79,28 +79,90 @@ app.use('/api/member', authenticateToken); // Protect member routes
 // --- Authentication Routes ---
 const saltRounds = 10;
 
-// POST /api/auth/signup (General signup - ONLY Employee/Member)
+// POST /api/auth/signup (Allows FIRST admin, otherwise only Employee/Member)
 app.post('/api/auth/signup', async (req, res, next) => {
-    const { username, password, role } = req.body;
-    if (!username || !password || !role) return res.status(400).json({ error: 'Username, password, and role required.' });
+    const { username, password, role, fname, lname, email, phone } = req.body; // Include potential member fields
 
-    // *** Only allow non-admin roles through this general signup ***
-    const allowedRoles = ['employee', 'member'];
-    if (!allowedRoles.includes(role)) return res.status(400).json({ error: 'Invalid role specified for general signup. Admins must be added by existing admins.' });
-
-    // *** Password length check ***
+    // Basic input validation
+    if (!username || !password || !role) {
+        return res.status(400).json({ error: 'Username, password, and role are required.' });
+    }
     if (password.length < 4) {
          return res.status(400).json({ error: 'Password must be at least 4 characters long.' });
     }
 
     try {
-        const [userRows] = await dbPool.query('SELECT user_id FROM users WHERE username = ?', [username]);
-        if (userRows.length > 0) return res.status(409).json({ error: 'Username already taken.' });
+        // --- Check if an admin already exists ---
+        const [adminRows] = await dbPool.query('SELECT COUNT(*) as adminCount FROM users WHERE role = ?', ['admin']);
+        const adminExists = adminRows[0].adminCount > 0;
+        // ----------------------------------------
 
+        // --- Role Validation based on admin existence ---
+        const allowedRolesForSignup = ['employee', 'member'];
+        if (role === 'admin') {
+            if (adminExists) {
+                // Block creating *another* admin via general signup
+                return res.status(403).json({ error: 'Admin user already exists. New admins must be added by an existing admin.' });
+            }
+            // Allow creating the FIRST admin if none exist
+        } else if (!allowedRolesForSignup.includes(role)) {
+            // Reject other invalid roles
+            return res.status(400).json({ error: 'Invalid role specified for signup.' });
+        }
+        // ------------------------------------------------
+
+        // Check if username is taken
+        const [userRows] = await dbPool.query('SELECT user_id FROM users WHERE username = ?', [username]);
+        if (userRows.length > 0) {
+            return res.status(409).json({ error: 'Username already taken.' });
+        }
+
+        // Hash password
         const hashedPassword = await bcrypt.hash(password, saltRounds);
-        const [insertResult] = await dbPool.query('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', [username, hashedPassword, role]);
-        res.status(201).json({ message: `User '${username}' created successfully as ${role}!` });
-    } catch (error) { next(error); }
+
+        // Use transaction to ensure both user and member (if applicable) are created
+        const connection = await dbPool.getConnection();
+        await connection.beginTransaction();
+
+        try {
+            // Insert into users table
+            const [insertUserResult] = await connection.query(
+                'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
+                [username, hashedPassword, role]
+            );
+            const newUserId = insertUserResult.insertId;
+
+            // If the role is 'member', also insert into MEMBER table
+            if (role === 'member') {
+                // Validate required member fields (assuming Fname/Lname are now required)
+                if (!fname || !lname) {
+                     throw new Error('First name and last name are required for member signup.');
+                }
+                await connection.query(
+                    'INSERT INTO MEMBER (user_id, Fname, Lname, Email, Phone_number, Member_plan_id) VALUES (?, ?, ?, ?, ?, ?)',
+                    [newUserId, fname, lname, email || null, phone || null, null] // Start with null plan
+                );
+                console.log(`Created MEMBER record for user_id ${newUserId}`);
+            }
+
+            await connection.commit();
+            connection.release();
+            res.status(201).json({ message: `User '${username}' created successfully as ${role}!` });
+
+        } catch (err) {
+            await connection.rollback(); // Rollback on error during transaction
+            connection.release();
+            console.error("Signup transaction error:", err);
+             if (err.message.includes('First name and last name')) {
+                return res.status(400).json({ error: err.message }); // Specific error for missing names
+            }
+            next(err); // Pass other errors to global handler
+        }
+
+    } catch (error) {
+        // Handle errors before transaction starts (like DB query for admin count)
+        next(error);
+    }
 });
 
 // POST /api/auth/login
@@ -385,6 +447,23 @@ app.get('/api/member/tee-times', authenticateToken, async (req, res, next) => {
         next(error);
     }
 });
+
+// ---> ADD Endpoint to check if any admin exists <---
+// GET /api/auth/admin-exists (No authentication needed for this check)
+app.get('/api/auth/admin-exists', async (req, res, next) => {
+    try {
+        const [adminRows] = await dbPool.query('SELECT COUNT(*) as adminCount FROM users WHERE role = ?', ['admin']);
+        const adminExists = adminRows[0].adminCount > 0;
+        res.json({ exists: adminExists });
+    } catch (error) {
+        // If DB error occurs, assume admin might exist to be safe? Or report error?
+        console.error("Error checking admin existence:", error);
+        // Returning true to prevent accidentally allowing multiple admins if DB fails temporarily
+        res.status(500).json({ exists: true, error: 'Could not verify admin existence' });
+        // Or alternatively: next(error);
+    }
+});
+// --------------------------------------------------
 
 // Get available tee times for booking
 app.get('/api/member/available-tee-times', authenticateToken, async (req, res, next) => {

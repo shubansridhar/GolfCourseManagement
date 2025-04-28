@@ -18,37 +18,76 @@ const noAddTables = [
     // add any other table names here you want to disable “Add”
   ];
 
-async function fetchTablesAndPopulateDashboard() {
+  async function fetchTablesAndPopulateDashboard() {
     try {
         const placeholder = document.getElementById('dynamic-cards-placeholder');
-        if (!placeholder) { console.error('#dynamic-cards-placeholder not found.'); return; }
+        if (!placeholder) {
+            console.error('#dynamic-cards-placeholder not found.');
+            return;
+        }
+
         placeholder.innerHTML = '<div class="loading" style="grid-column: 1 / -1;"><i class="fas fa-spinner fa-spin"></i> Loading tables...</div>';
+
         const response = await authenticatedFetch(`${API_BASE_URL}/tables`);
         if (!response.ok) throw new Error('Failed to fetch tables');
-        const tables = await response.json();
+        let tables = await response.json();
+
+        // Keep ONLY tables explicitly listed in customTitles
+        const allowedTables = ['MEMBER', 'HOLE', 'TEE_TIME', 'EMPLOYEE', 'GOLF_COURSE', 'PLAN_DISCOUNT'];
+        tables = tables.filter(table => allowedTables.includes(table.toUpperCase()));
+
         populateDashboard(tables, placeholder);
     } catch (error) {
         console.error('Error fetching tables:', error);
         showNotification('Failed to load tables. Please try again.', 'error');
         const placeholder = document.getElementById('dynamic-cards-placeholder');
-        if (placeholder) { placeholder.innerHTML = '<p class="no-tables error" style="grid-column: 1 / -1;">Failed to load tables.</p>'; }
+        if (placeholder) {
+            placeholder.innerHTML = '<p class="no-tables error" style="grid-column: 1 / -1;">Failed to load tables.</p>';
+        }
     }
 }
 
+
 function populateDashboard(tables, targetElement) {
     if (!targetElement) return;
-    if (!tables || tables.length === 0) { targetElement.innerHTML = '<p class="no-tables" style="grid-column: 1 / -1;">No tables available.</p>'; return; }
+    if (!tables || tables.length === 0) {
+        targetElement.innerHTML = '<p class="no-tables" style="grid-column: 1 / -1;">No tables available.</p>';
+        return;
+    }
+
     const tableGroups = groupTablesByCategory(tables);
+
+    const customTitles = {
+        'MEMBER': 'Members',
+        'HOLE': 'Course Holes',
+        'TEE_TIME': 'Manage Tee Times',
+        'EMPLOYEE': 'Employees',
+        'GOLF_COURSE': 'Golf Course Details',
+        'PLAN_DISCOUNT': 'Plan Discounts'
+    };
+
     let html = '';
     for (const category in tableGroups) {
-        if(tableGroups[category].length > 0) { html += tableGroups[category].map(table => createTableCard(table)).join(''); }
+        if (tableGroups[category].length > 0) {
+            html += tableGroups[category].map(table => {
+                const friendlyTitle = customTitles[table.toUpperCase()] || formatTableName(table);
+                return `
+                    <div class="table-card dynamic-card" data-table="${table}" style="cursor: pointer;">
+                        <div class="card-icon"><i class="fas fa-${getIcon(table)}"></i></div>
+                        <div class="card-details">
+                            <h4>${friendlyTitle}</h4>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
     }
     targetElement.innerHTML = html;
+
     targetElement.querySelectorAll('.table-card.dynamic-card').forEach(card => {
         card.addEventListener('click', function () {
             const tableName = this.dataset.table;
-            showTableView(tableName); // Show the view
-            loadTableData(tableName); // Load data into the view
+            showTableView(tableName);
+            loadTableData(tableName);
         });
     });
 }
@@ -56,6 +95,18 @@ function populateDashboard(tables, targetElement) {
 function groupTablesByCategory(tables) { const groups = { 'member': [], 'course': [], 'equipment': [], 'employee': [], 'other': [] }; tables.forEach(table => { if (table.startsWith('member') || table.includes('membership')) groups.member.push(table); else if (table.startsWith('course') || table.includes('hole') || table.includes('tee_time')) groups.course.push(table); else if (table.includes('equipment') || table.includes('rental')) groups.equipment.push(table); else if (table.includes('employee') || table.includes('staff')) groups.employee.push(table); else groups.other.push(table); }); for (const category in groups) if (groups[category].length === 0) delete groups[category]; return groups; }
 function createTableCard(tableName) { let icon = 'table'; if (tableName.includes('member')) icon = 'users'; else if (tableName.includes('course') || tableName.includes('hole')) icon = 'golf-ball'; else if (tableName.includes('tee_time')) icon = 'calendar-alt'; else if (tableName.includes('equipment') || tableName.includes('rental')) icon = 'tools'; else if (tableName.includes('employee')) icon = 'user-tie'; else if (tableName.includes('manage')) icon = 'tasks'; return `<div class="table-card dynamic-card" data-table="${tableName}" style="cursor: pointer;"><div class="card-icon"><i class="fas fa-${icon}"></i></div><div class="card-details"><h4>${formatTableName(tableName)}</h4></div></div>`; }
 function formatTableName(tableName) { return tableName.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase()); }
+function getIcon(tableName) {
+    tableName = tableName.toLowerCase();
+    if (tableName.includes('member')) return 'users';
+    if (tableName.includes('course')) return 'golf-ball';
+    if (tableName.includes('hole')) return 'golf-ball';
+    if (tableName.includes('tee_time')) return 'calendar-alt';
+    if (tableName.includes('equipment') || tableName.includes('rental')) return 'tools';
+    if (tableName.includes('employee')) return 'user-tie';
+    if (tableName.includes('manage')) return 'tasks';
+    if (tableName.includes('plan')) return 'clipboard-list';
+    return 'table'; // default fallback
+}
 function formatCategoryName(category) { return category.charAt(0).toUpperCase() + category.slice(1) + ' Tables'; }
 
 
@@ -78,31 +129,88 @@ async function loadTableData(tableName) {
         }
         }
         window.currentTable = tableName;
-        const dataTable = document.getElementById('data-table'); if (!dataTable) return; const thead = dataTable.querySelector('thead tr'); const tbody = dataTable.querySelector('tbody'); if (!thead || !tbody) return; thead.innerHTML = '<th>Loading...</th>'; tbody.innerHTML = '<tr><td colspan="1" class="loading-cell"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+        const dataTable = document.getElementById('data-table'); if (!dataTable) return; const thead = dataTable.querySelector('thead tr'); const tbody = dataTable.querySelector('tbody'); 
+        if (!thead || !tbody) return; thead.innerHTML = '<th>Loading...</th>'; tbody.innerHTML = '<tr><td colspan="1" class="loading-cell"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
         const [structureResponse, dataResponse] = await Promise.all([ authenticatedFetch(`${API_BASE_URL}/tables/${tableName}/structure`), authenticatedFetch(`${API_BASE_URL}/tables/${tableName}`)]); if (!structureResponse.ok || !dataResponse.ok) throw new Error('Failed fetch'); const structure = await structureResponse.json(); const tableData = await dataResponse.json(); currentTableStructure = structure; const pkCol = structure.find(c => c.Key === 'PRI'); currentPrimaryKeyField = pkCol ? pkCol.Field : (structure[0]?.Field || ''); if (!currentPrimaryKeyField) console.warn(`PK missing ${tableName}`); renderTableData(structure, tableData);
     } catch (error) { console.error('Err load table:', error); showNotification('Failed load table', 'error'); const tbody = document.querySelector('#data-table tbody'); if (tbody) tbody.innerHTML = `<tr><td colspan="1" class="error-table">Error loading data.</td></tr>`; }
 }
 
 function renderTableData(structure, tableData) {
-    const dataTable = document.getElementById('data-table'); if (!dataTable) return; const thead = dataTable.querySelector('thead tr'); const tbody = dataTable.querySelector('tbody'); if (!thead || !tbody) return;
-    const columnCount = structure.length + 1; thead.innerHTML = structure.map(col => `<th>${col.Field}</th>`).join('') + '<th>Actions</th>'; if (tableData.length === 0) { tbody.innerHTML = `<tr><td colspan="${columnCount}" class="empty-table">No records</td></tr>`; return; }
+    // Define friendly column names explicitly
+    const friendlyColumnNames = {
+        'USER_ID': 'User ID',
+        'MEMBER_PLAN_ID': 'Membership Plan',
+        'LNAME': 'Last Name',
+        'FNAME': 'First Name',
+        'EMAIL': 'Email Address',
+        'PHONE_NUMBER': 'Phone Number',
+        'HANDICAP': 'Handicap',
+        'JOINDATE': 'Join Date',
+        'TEE_TIME_ID': 'Tee Time ID',
+        'EQUIPMENT_ID': 'Equipment ID',
+        'RENTAL_DATE': 'Rental Date',
+        'RETURN_DATE': 'Return Date',
+        'RETURNED': 'Returned',
+        'PLAN_ID': 'Plan ID',
+        'PLAN_TYPE': 'Plan Type',
+        'FEES': 'Fees',
+        'AVAILABILITY': 'Availability',
+        'COURSE_ID': 'Course ID',
+        'HOLE_ID': 'Hole ID',
+        'EMP_FNAME': 'First Name',
+        'EMP_LNAME': 'Last Name',
+        'ROLE': 'Role',
+        'RENTAL_DISCOUNT': 'Rental Discount',
+        'DISTANCE_TO_PIN': 'Distance to Pin',
+        'AVAILABLE_SLOTS': 'Available Slots',
+        'HIREDATE': 'Hire Date',
+        'COURSE_NAME': 'Course Name',
+        'RENTAL_ID': 'Rental ID',
+        'RENTAL_FEE': 'Rental Fee',
+        'PLAN_START_DATE': 'Plan Start Date',
+        'PLAN_END_DATE': 'Plan End Date'
+    };
+
+    const dataTable = document.getElementById('data-table');
+    if (!dataTable) return;
+
+    const thead = dataTable.querySelector('thead tr');
+    const tbody = dataTable.querySelector('tbody');
+    if (!thead || !tbody) return;
+
+    const columnCount = structure.length + 1;
+
+    // Render headers with friendly names
+    thead.innerHTML = structure.map(col => {
+        const colName = col.Field.toUpperCase();
+        return `<th>${friendlyColumnNames[colName] || col.Field}</th>`;
+    }).join('') + '<th>Actions</th>';
+
+    // Render table data
+    if (tableData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${columnCount}" class="empty-table">No records</td></tr>`;
+        return;
+    }
 
     tbody.innerHTML = tableData.map(row => {
-         const recordId = currentPrimaryKeyField ? row[currentPrimaryKeyField] : null;
-         const actionsDisabled = !recordId ? 'disabled' : '';
-         let actionButtonsHTML = `
+        const recordId = currentPrimaryKeyField ? row[currentPrimaryKeyField] : null;
+        const actionsDisabled = !recordId ? 'disabled' : '';
+        let actionButtonsHTML = `
             <button class="btn-edit" ${actionsDisabled} title="Edit"><i class="fas fa-edit"></i></button>
             <button class="btn-delete" ${actionsDisabled} title="Delete"><i class="fas fa-trash"></i></button>
-         `;
-         // ---> Conditionally Add Assign Plan Button <---
-         if (window.currentTable.toUpperCase() === 'MEMBER' && recordId) {
-            const memberName = `${row.Fname || ''} ${row.Lname || ''}`.trim(); // Get name for modal
-             actionButtonsHTML += `
+        `;
+
+        if (window.currentTable.toUpperCase() === 'MEMBER' && recordId) {
+            const memberName = `${row.Fname || ''} ${row.Lname || ''}`.trim();
+            actionButtonsHTML += `
                 <button class="btn-assign-plan" data-userid="${recordId}" data-name="${escapeHtml(memberName)}" title="Assign/Change Plan" style="margin-left: 5px;"><i class="fas fa-id-card"></i></button>
-             `;
-         }
-         // ---------------------------------------------
-         return `<tr ${recordId ? `data-id="${recordId}"` : ''}> ${structure.map(col => `<td>${escapeHtml(formatCellValue(row[col.Field]))}</td>`).join('')} <td class="actions">${actionButtonsHTML}</td></tr>`;
+            `;
+        }
+
+        return `<tr ${recordId ? `data-id="${recordId}"` : ''}> 
+            ${structure.map(col => `<td>${escapeHtml(formatCellValue(row[col.Field]))}</td>`).join('')} 
+            <td class="actions">${actionButtonsHTML}</td>
+        </tr>`;
     }).join('');
 
     // Attach standard listeners

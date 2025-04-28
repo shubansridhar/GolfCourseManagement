@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Modals Setup
     setupModalListeners(); // Setup general close listeners
     // Specific submit listeners
-    document.getElementById('submit-record')?.addEventListener('click', data.handleAddRecordSubmit); // Add Record Modal
+    document.getElementById('submit-record')?.addEventListener('click', data.handleModalFormSubmit); // Add Record Modal
     document.getElementById('submit-new-admin')?.addEventListener('click', data.handleAddAdminSubmit); // Add Admin Modal
     document.getElementById('submit-new-employee')?.addEventListener('click', data.handleAddEmployeeSubmit); // Add Employee Modal
     document.getElementById('change-password-form')?.addEventListener('submit', handleChangePassword); // Change Password Form

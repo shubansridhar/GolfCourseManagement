@@ -30,7 +30,8 @@ const excludeTables = [
     'GOLF_COURSE',
     'PLAN_DISCOUNT',
     'HOLE',
-    'EMPLOYEE'
+    'EMPLOYEE',
+    'MANAGES'
   ];
 
 /**
@@ -105,9 +106,18 @@ function getIcon(tableName) {
  * Format table name for display
  */
 function formatTableName(tableName) {
-    return tableName
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, char => char.toUpperCase());
+    const customTitles = {
+        'EQUIPMENT': 'Equipment Inventory',
+        'EQUIPMENT_RENTAL': 'Equipment Rentals',
+        'EQUIPMENT_TYPE': 'Equipment Types',
+        'MEMBER': 'Members',
+        'MEMBER_TEE_TIME': 'Tee Time Bookings',
+        'MEMBERSHIP_PLAN': 'Membership Plans',
+        'TEE_TIME': 'Manage Tee Times'
+    };
+
+    return customTitles[tableName.toUpperCase()] || 
+           tableName.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
 }
 
 export { loadEmployeeData };

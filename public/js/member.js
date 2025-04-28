@@ -40,7 +40,7 @@ async function loadMemberData() {
         // Cache the data
         memberProfile = profile;
         membershipPlan = plan;
-        memberTeeTimes = teeTimes.booked;
+        memberTeeTimes = teeTimes.upcoming;
         availableTeeTimes = teeTimes.available;
         availableEquipment = equipment.available;
         memberRentals = equipment.rentals;
@@ -65,9 +65,10 @@ async function loadMemberData() {
 async function fetchMemberProfile() {
     const response = await authenticatedFetch(`${MEMBER_API}/profile`);
     if (!response.ok) throw new Error('Failed to fetch profile data');
-    return response.json();
-}
-
+    const profile = await response.json();
+    memberProfile = profile;
+    return profile;
+  }
 /**
  * Fetch membership plan
  */
@@ -126,19 +127,17 @@ async function fetchEquipment() {
  */
 function renderMemberProfile() {
     if (!memberProfile) return;
-
+    const { firstName, lastName, email, phone, joinDate } = memberProfile;
     const profileContent = document.getElementById('member-profile-content');
-    if (!profileContent) return;
-
     profileContent.innerHTML = `
-        <div class="profile-info">
-            <p><strong>Name:</strong> ${memberProfile.name || 'Not provided'}</p>
-            <p><strong>Email:</strong> ${memberProfile.email || 'Not provided'}</p>
-            <p><strong>Phone:</strong> ${memberProfile.phone || 'Not provided'}</p>
-            <p><strong>Member Since:</strong> ${new Date(memberProfile.joinDate).toLocaleDateString()}</p>
-        </div>
+      <div class="profile-info">
+        <p><strong>Name:</strong> ${firstName} ${lastName}</p>
+        <p><strong>Email:</strong> ${email || 'Not provided'}</p>
+        <p><strong>Phone:</strong> ${phone || 'Not provided'}</p>
+        <p><strong>Member Since:</strong> ${new Date(joinDate).toLocaleDateString()}</p>
+      </div>
     `;
-}
+  }
 
 /**
  * Render membership plan section
@@ -511,8 +510,95 @@ function setupMemberEventListeners() {
 
 // Placeholder functions for modals (will be implemented later)
 function openProfileEditModal() {
-    console.log('Open profile edit modal');
-}
+    console.log('🔔 openProfileEditModal() called, memberProfile=', memberProfile);
+    if (!memberProfile) return;
+  
+    const modal = document.getElementById('profile-edit-modal');
+    const form  = document.getElementById('profile-edit-form');
+    if (!modal || !form) return;
+  
+    // Format the joinDate nicely
+    const since = memberProfile.joinDate
+      ? new Date(memberProfile.joinDate).toLocaleDateString()
+      : '';
+  
+    // Populate the form
+    form.innerHTML = `
+      <div class="form-group">
+        <label for="profile-firstName">First Name</label>
+        <input type="text" id="profile-firstName" name="firstName" class="form-control"
+               value="${memberProfile.firstName || ''}" required />
+      </div>
+      <div class="form-group">
+        <label for="profile-lastName">Last Name</label>
+        <input type="text" id="profile-lastName" name="lastName" class="form-control"
+               value="${memberProfile.lastName || ''}" required />
+      </div>
+      <div class="form-group">
+        <label for="profile-email">Email</label>
+        <input type="email" id="profile-email" name="email" class="form-control"
+               value="${memberProfile.email || ''}" />
+      </div>
+      <div class="form-group">
+        <label for="profile-phone">Phone</label>
+        <input type="tel" id="profile-phone" name="phone" class="form-control"
+               value="${memberProfile.phone || ''}" />
+      </div>
+      <div class="form-group">
+        <label for="profile-since">Member Since</label>
+        <input type="text" id="profile-since" class="form-control" readonly
+               value="${since}" />
+      </div>
+    `;
+  
+    // Show the modal
+    modal.style.display = 'block';
+  
+    // Close handlers
+    document.getElementById('close-profile-modal')
+      .onclick = () => modal.style.display = 'none';
+    document.getElementById('cancel-profile-edit-btn')
+      .onclick = () => modal.style.display = 'none';
+  
+    // Save handler
+    const saveBtn = document.getElementById('save-profile-btn');
+    saveBtn.onclick = handleProfileSave;
+  }
+  
+  async function handleProfileSave() {
+    const form  = document.getElementById('profile-edit-form');
+    const modal = document.getElementById('profile-edit-modal');
+    if (!form) return;
+  
+    // Build the payload with camelCase keys
+    const payload = {
+      firstName: form.elements['firstName'].value.trim(),
+      lastName:  form.elements['lastName'].value.trim(),
+      email:     form.elements['email'].value.trim(),
+      phone:     form.elements['phone'].value.trim(),
+    };
+  
+    try {
+      const res = await authenticatedFetch(`${MEMBER_API}/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to update profile');
+      }
+  
+      showNotification('Profile updated successfully!', 'success');
+      modal.style.display = 'none';
+      // Re-fetch and re-render your profile view
+      await loadMemberData();
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      showNotification(error.message, 'error');
+    }
+  }
+  
 
 function openPlanChangeModal() {
     console.log('Open plan change modal');
@@ -528,6 +614,9 @@ function openRentEquipmentModal() {
 
 // Export functions
 export {
+    openProfileEditModal,
+    handleProfileSave,
+    fetchMemberProfile,
     loadMemberData,
     setupMemberEventListeners
 }; 

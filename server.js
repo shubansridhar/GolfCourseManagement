@@ -220,9 +220,9 @@ app.put('/api/member/profile', authenticateToken, async (req, res, next) => {
         Fname = ?,
         Lname = ?,
         Email = ?,
-        Phone_number = ?,
+        Phone_number = ?
       WHERE user_id = ?
-    `, [firstName, lastName, email, phone, handicap, userId]);
+    `, [firstName, lastName, email, phone, userId]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Member profile not found.' });

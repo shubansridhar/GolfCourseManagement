@@ -168,7 +168,6 @@ app.get('/api/member/profile', authenticateToken, async (req, res, next) => {
       return res.status(403).json({ error: 'Access forbidden. Member role required.' });
     }
     const userId = req.user.userId;
-  
     try {
       const [[profile]] = await dbPool.query(`
         SELECT
@@ -177,11 +176,14 @@ app.get('/api/member/profile', authenticateToken, async (req, res, next) => {
           m.Lname              AS lastName,
           m.Email              AS email,
           m.Phone_number       AS phone,
+          u.created_at         AS joinDate,
           m.Member_plan_id     AS planId,
           mp.Plan_type         AS planType,
           mp.Fees              AS planFees,
           pd.Rental_discount   AS rentalDiscount
         FROM MEMBER m
+        JOIN users u
+          ON m.user_id = u.user_id
         LEFT JOIN MEMBERSHIP_PLAN mp
           ON m.Member_plan_id = mp.Plan_id
         LEFT JOIN PLAN_DISCOUNT pd
@@ -197,6 +199,7 @@ app.get('/api/member/profile', authenticateToken, async (req, res, next) => {
       next(err);
     }
   });
+
 // PUT /api/member/profile
 app.put('/api/member/profile', authenticateToken, async (req, res, next) => {
   if (req.user.role !== 'member') {

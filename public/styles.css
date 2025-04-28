@@ -1144,22 +1144,26 @@ select {
 .profile-info {
     display: block;
     padding: 1rem 0;
-  }
-  
-  /* make each <p> a flex‐row of [label][value] */
-  .profile-info p {
+}
+
+/* make each <p> a flex‐row of [label][value] */
+.profile-info p {
     display: flex;
     align-items: center;
-    margin: 0 0 0.5rem;    /* space between rows */
-  }
-  
-  /* give your <strong> (the label) a fixed width */
-  .profile-info p strong {
+    margin: 0 0 0.5rem;
+    /* space between rows */
+}
+
+/* give your <strong> (the label) a fixed width */
+.profile-info p strong {
     display: inline-block;
-    width: 100px;          /* tweak to fit your longest label */
-    flex-shrink: 0;        /* don’t let it collapse */
-    margin-right: 1rem;    /* gap between label & value */
-  }
+    width: 100px;
+    /* tweak to fit your longest label */
+    flex-shrink: 0;
+    /* don't let it collapse */
+    margin-right: 1rem;
+    /* gap between label & value */
+}
 
 .profile-picture {
     width: 100px;
@@ -1611,4 +1615,10 @@ select {
 #employee-view .view-header h2 {
     font-size: 1.6rem;
     margin-bottom: 10px;
+}
+
+/* --- Chart Canvas Sizing --- */
+.stats-card canvas {
+    width: 100% !important;
+    height: 200px !important;
 }

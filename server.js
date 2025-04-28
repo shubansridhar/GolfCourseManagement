@@ -135,6 +135,123 @@ app.post('/api/admin/employees', async (req, res, next) => {
 });
 
 
+// 1. MEMBER_TEE_TIME → show member name instead of user_id
+app.get('/api/tables/MEMBER_TEE_TIME', authenticateToken, async (req, res, next) => {
+  try {
+    const [rows] = await dbPool.query(`
+      SELECT
+        mtt.Tee_time_id          AS Tee_time_id,
+        mtt.user_id              AS user_id,
+        CONCAT(m.Fname,' ',m.Lname) AS MemberName,
+        tt.Date                  AS Date,
+        tt.Time                  AS Time,
+        tt.Available_slots       AS Available_slots
+      FROM MEMBER_TEE_TIME mtt
+      JOIN MEMBER m
+        ON mtt.user_id = m.user_id
+      JOIN TEE_TIME tt
+        ON mtt.Tee_time_id = tt.Tee_time_id
+    `);
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Return a custom “structure” for MEMBER_TEE_TIME so the client will render MemberName
+app.get('/api/tables/MEMBER_TEE_TIME/structure', authenticateToken, async (req, res, next) => {
+  try {
+    // Fetch the real describe info
+    const [orig] = await dbPool.query('DESCRIBE `MEMBER_TEE_TIME`');
+
+    // Remove the user_id column (we’ll replace it with MemberName)
+    const filtered = orig.filter(col => col.Field !== 'user_id');
+
+    // Prepend our MemberName column
+    const custom = [
+      { Field: 'MemberName', Type: 'varchar(255)', Null: 'YES', Key: '', Default: null, Extra: '' },
+      ...filtered
+    ];
+
+    res.json(custom);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 2. EQUIPMENT_RENTAL → show username instead of user_id
+app.get('/api/tables/EQUIPMENT_RENTAL', authenticateToken, async (req, res, next) => {
+  try {
+    const [rows] = await dbPool.query(`
+      SELECT
+        er.Rental_id             AS Rental_id,
+        er.user_id               AS user_id,
+        u.username               AS Username,
+        er.Equipment_id          AS Equipment_id,
+        er.Rental_date           AS Rental_date,
+        er.Return_date           AS Return_date,
+        er.Returned              AS Returned
+      FROM EQUIPMENT_RENTAL er
+      JOIN users u
+        ON er.user_id = u.user_id
+    `);
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Custom structure for EQUIPMENT_RENTAL: drop user_id, prepend Username
+app.get('/api/tables/EQUIPMENT_RENTAL/structure', authenticateToken, async (req, res, next) => {
+  try {
+    const [orig] = await dbPool.query('DESCRIBE `EQUIPMENT_RENTAL`');
+    // remove the raw user_id column
+    const filtered = orig.filter(col => col.Field !== 'user_id');
+    // add our Username field in front
+    const custom = [
+      { Field: 'Username', Type: 'varchar(255)', Null: 'YES', Key: '', Default: null, Extra: '' },
+      ...filtered
+    ];
+    res.json(custom);
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+// 3. MANAGES → show employee name instead of user_id
+app.get('/api/tables/MANAGES', authenticateToken, async (req, res, next) => {
+  try {
+    const [rows] = await dbPool.query(`
+      SELECT
+        m.Equipment_id           AS Equipment_id,
+        m.user_id                AS user_id,
+        CONCAT(e.Emp_fname,' ',e.Emp_lname) AS EmployeeName
+      FROM MANAGES m
+      JOIN EMPLOYEE e
+        ON m.user_id = e.user_id
+    `);
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Custom structure for MANAGES: drop user_id, prepend EmployeeName
+app.get('/api/tables/MANAGES/structure', authenticateToken, async (req, res, next) => {
+  try {
+    const [orig] = await dbPool.query('DESCRIBE `MANAGES`');
+    const filtered = orig.filter(col => col.Field !== 'user_id');
+    const custom = [
+      { Field: 'EmployeeName', Type: 'varchar(255)', Null: 'YES', Key: '', Default: null, Extra: '' },
+      ...filtered
+    ];
+    res.json(custom);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // --- Table Data Routes ---
 // GET /api/tables, GET /:tableName/structure, GET /:tableName (Unchanged)
 app.get('/api/tables', async (req, res, next) => { try { const [r] = await dbPool.query("SHOW TABLES"); const t = r.map(rw => Object.values(rw)[0]).filter(n => n !== 'users'); res.json(t); } catch (err) { next(err); } });

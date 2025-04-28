@@ -146,26 +146,33 @@ async function loadTableData(tableName) {
 
 /**
  * Render table data to the DOM
- * CORRECTED: Use currentTableUpper for column filtering condition
+ * CORRECTED: Show Actions column for Employees on MEMBER table for Assign Plan button.
+ * Hide Actions for Admins on MEMBER table and for all on EMPLOYEE table.
  */
 function renderTableData(structure, tableData) {
     const dataTable = document.getElementById('data-table'); if (!dataTable) return;
     const thead = dataTable.querySelector('thead tr'); const tbody = dataTable.querySelector('tbody'); if (!thead || !tbody) return;
 
     const currentTableUpper = window.currentTable?.toUpperCase();
-    // Determine if the Actions column should be shown for this table
-    const hideActionsColumn = (currentTableUpper === 'MEMBER' || currentTableUpper === 'EMPLOYEE');
+    const isMemberTable = currentTableUpper === 'MEMBER';
+    const isEmployeeTable = currentTableUpper === 'EMPLOYEE';
+
+    // --- Determine if the Actions column should be shown AT ALL for this view ---
+    // Show Actions IF:
+    // - It's the Member table AND the current user is an Employee
+    // - OR It's NOT the Member table AND NOT the Employee table
+    const showActionsColumn = (isMemberTable && currentUser?.role === 'employee') || (!isMemberTable && !isEmployeeTable);
+    // ---
 
     console.log(`--- Rendering Table ---`);
     console.log(`Current Table (Upper): ${currentTableUpper}`);
-    console.log(`Hide Actions Column? ${hideActionsColumn}`);
+    console.log(`Current User Role: ${currentUser?.role}`);
+    console.log(`Show Actions Column? ${showActionsColumn}`);
 
-    // Filter structure based on current table
+    // Filter structure based on current table (e.g., hide Handicap for Member)
     let columnsToRender = structure;
-    // ---> CORRECTED: Use currentTableUpper for the condition <---
-    if (currentTableUpper === 'MEMBER') {
+    if (isMemberTable) {
         const hiddenMemberColumns = ['HANDICAP']; // Define columns to hide for MEMBER table view
-        console.log("Filtering columns for MEMBER table, hiding:", hiddenMemberColumns);
         columnsToRender = structure.filter(col =>
             !hiddenMemberColumns.includes(col.Field.toUpperCase())
         );
@@ -173,13 +180,13 @@ function renderTableData(structure, tableData) {
     // Add other column filtering if needed...
 
     // Determine column count for colspan
-    const columnCount = columnsToRender.length + (hideActionsColumn ? 0 : 1);
+    const columnCount = columnsToRender.length + (showActionsColumn ? 1 : 0);
 
     // Render headers with friendly names
     const friendlyColumnNames = { USER_ID:'User ID', MEMBER_PLAN_ID:'Plan', LNAME:'Last Name', FNAME:'First Name', EMAIL:'Email Address', PHONE_NUMBER:'Phone Number', HANDICAP:'Hcp', JOINDATE:'Joined', TEE_TIME_ID:'TT ID', EQUIPMENT_ID:'Eq ID', RENTAL_DATE:'Rented', RETURN_DATE:'Due', RETURNED:'Ret?', PLAN_ID:'Plan ID', PLAN_TYPE:'Plan Type', FEES:'Fees', AVAILABILITY:'Avail?', COURSE_ID:'Course ID', HOLE_ID:'Hole ID', EMP_FNAME:'First Name', EMP_LNAME:'Last Name', ROLE:'App Role', RENTAL_DISCOUNT:'Discount', DISTANCE_TO_PIN:'Distance', AVAILABLE_SLOTS:'Slots', HIREDATE:'Hired', COURSE_NAME:'Course Name', RENTAL_ID:'Rental ID', RENTAL_FEE:'Fee', PLAN_START_DATE:'Start', PLAN_END_DATE:'End' };
     thead.innerHTML = columnsToRender.map(col =>
         `<th>${friendlyColumnNames[col.Field.toUpperCase()] || col.Field}</th>`
-    ).join('') + (hideActionsColumn ? '' : '<th>Actions</th>');
+    ).join('') + (showActionsColumn ? '<th>Actions</th>' : ''); // Conditionally add Actions header
 
     // Render table data rows
     if (tableData.length === 0) {
@@ -190,34 +197,45 @@ function renderTableData(structure, tableData) {
     tbody.innerHTML = tableData.map(row => {
          const recordId = currentPrimaryKeyField ? row[currentPrimaryKeyField] : null;
          const actionsDisabled = !recordId ? 'disabled' : '';
-         let actionsCellHTML = '';
+         let actionsCellHTML = ''; // Start empty
 
-         if (!hideActionsColumn) {
-             let actionButtons = [];
+         // Generate buttons and the actions cell ONLY if showActionsColumn is true
+         if (showActionsColumn) {
+             let actionButtons = []; // Array for buttons in this specific cell
+
+             // EDIT Button Logic (Show unless disallowed table OR it's Admin-only table and user isn't admin)
              let showEditButton = !noEditTables.includes(currentTableUpper);
              if (showEditButton && (currentTableUpper === 'GOLF_COURSE' || currentTableUpper === 'HOLE' || currentTableUpper === 'TEE_TIME')) {
                  if (!isAdmin()) { showEditButton = false; }
              }
              if (showEditButton) { actionButtons.push(`<button class="btn-edit" ${actionsDisabled} title="Edit"><i class="fas fa-edit"></i></button>`); }
-             if (!noDeleteTables.includes(currentTableUpper)) { actionButtons.push(`<button class="btn-delete" ${actionsDisabled} title="Delete"><i class="fas fa-trash"></i></button>`); }
 
-             // Assign plan button logic (now correctly placed - only added if actions are shown AND it's MEMBER table AND employee)
-             if (currentTableUpper === 'MEMBER' && currentUser?.role === 'employee') {
-                 const memberName = `${row.Fname || ''} ${row.Lname || ''}`.trim();
+             // ASSIGN PLAN Button (Only for MEMBER table and Employee role)
+             // This check is now technically redundant because showActionsColumn is already false
+             // for Admins viewing MEMBER, but keeping it adds clarity.
+             if (isMemberTable && currentUser?.role === 'employee') {
+                const memberName = `${row.Fname || ''} ${row.Lname || ''}`.trim();
                  actionButtons.push(`<button class="btn-assign-plan" data-userid="${recordId}" data-name="${escapeHtml(memberName)}" title="Assign/Change Plan"><i class="fas fa-id-card"></i></button>`);
              }
 
-             if (actionButtons.length > 0) { actionsCellHTML = `<td class="actions">${actionButtons.join('&nbsp;')}</td>`; }
-             else { actionsCellHTML = `<td class="actions"></td>`; }
-         }
+             // DELETE Button Logic
+             if (!noDeleteTables.includes(currentTableUpper)) {
+                actionButtons.push(`<button class="btn-delete" ${actionsDisabled} title="Delete"><i class="fas fa-trash"></i></button>`);
+             }
 
+             // Create the table cell string
+             actionsCellHTML = `<td class="actions">${actionButtons.join('&nbsp;')}</td>`;
+         }
+         // If showActionsColumn is false, actionsCellHTML remains empty ""
+
+         // Render the row
          return `<tr ${recordId ? `data-id="${recordId}"` : ''}>
                     ${columnsToRender.map(col => `<td>${escapeHtml(formatCellValue(row[col.Field]))}</td>`).join('')}
                     ${actionsCellHTML}
                  </tr>`;
     }).join('');
 
-    // Attach listeners
+    // Attach listeners (Will only find buttons that were actually rendered)
     tbody.querySelectorAll('.btn-edit').forEach(btn => { btn.addEventListener('click', function (e) { e.stopPropagation(); const row = this.closest('tr'); if (row && row.dataset.id) editRecord(row.dataset.id); }); });
     tbody.querySelectorAll('.btn-delete').forEach(btn => { btn.addEventListener('click', function (e) { e.stopPropagation(); const row = this.closest('tr'); if (row && row.dataset.id) deleteRecord(row.dataset.id); }); });
     tbody.querySelectorAll('.btn-assign-plan').forEach(btn => { btn.addEventListener('click', function (e) { e.stopPropagation(); const userId = this.dataset.userid; const userName = this.dataset.name; if (userId) { openAssignPlanModal(userId, userName); } else { console.error("Missing user ID"); showNotification("Cannot assign plan: User ID missing.","error"); }}); });

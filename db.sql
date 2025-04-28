@@ -5,7 +5,7 @@ CREATE DATABASE IF NOT EXISTS GolfCourseDB;
 USE GolfCourseDB;
 
 -- Drop tables in an order that respects foreign key constraints (dependents first)
-DROP TABLE IF EXISTS MANAGES;            -- Depends on EMPLOYEE (now via user_id), EQUIPMENT
+DROP TABLE IF EXISTS MANAGES;          -- Depends on EMPLOYEE
 DROP TABLE IF EXISTS MEMBER_TEE_TIME;    -- Depends on MEMBER (now via user_id), TEE_TIME
 DROP TABLE IF EXISTS EQUIPMENT_RENTAL;   -- Depends on MEMBER (now via user_id), EQUIPMENT
 DROP TABLE IF EXISTS EMPLOYEE_CONTACT; -- Will be removed
@@ -124,15 +124,7 @@ CREATE TABLE MEMBER_TEE_TIME (
     FOREIGN KEY (Tee_time_id) REFERENCES TEE_TIME(Tee_time_id) ON DELETE CASCADE
 );
 
--- MANAGES Table (Refactored: uses user_id for employee link)
-CREATE TABLE MANAGES (
-    user_id INT,                      -- Changed from Emp_id
-    Equipment_id INT,
-    Management_date DATE,
-    PRIMARY KEY (user_id, Equipment_id), -- Changed PK
-    FOREIGN KEY (user_id) REFERENCES EMPLOYEE(user_id) ON DELETE CASCADE, -- Link to EMPLOYEE via user_id
-    FOREIGN KEY (Equipment_id) REFERENCES EQUIPMENT(Equipment_id) ON DELETE CASCADE
-);
+
 
 -- EQUIPMENT_RENTAL Table (Uses user_id)
 CREATE TABLE EQUIPMENT_RENTAL (

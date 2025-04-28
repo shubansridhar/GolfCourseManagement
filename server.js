@@ -237,7 +237,61 @@ app.get('/api/member/plans', async (req, res, next) => { try { const [p]=await d
 // PUT /api/member/plan
 app.put('/api/member/plan', async (req, res, next) => { if (!req.user || req.user.role !== 'member') return res.status(403).json({ error: 'Forbidden' }); const { Plan_id } = req.body; const userId = req.user.userId; try { await dbPool.query(`UPDATE MEMBER SET Member_plan_id=? WHERE user_id=?`,[Plan_id, userId]); res.json({ message: 'Plan updated' }); } catch(err){next(err);} });
 // GET /api/member/tee-times
-app.get('/api/member/tee-times', async (req, res, next) => { if (!req.user || req.user.role !== 'member') return res.status(403).json({ error: 'Forbidden' }); const userId = req.user.userId; try { const [up]=await dbPool.query(`SELECT tt.*, gc.Course_name FROM TEE_TIME tt JOIN MEMBER_TEE_TIME mtt ON tt.Tee_time_id=mtt.Tee_time_id JOIN GOLF_COURSE gc ON tt.Course_id=gc.Course_id WHERE mtt.user_id=? AND tt.Date >= CURDATE() ORDER BY tt.Date, tt.Time`,[userId]); const [hist]=await dbPool.query(`SELECT tt.*, gc.Course_name FROM TEE_TIME tt JOIN MEMBER_TEE_TIME mtt ON tt.Tee_time_id=mtt.Tee_time_id JOIN GOLF_COURSE gc ON tt.Course_id=gc.Course_id WHERE mtt.user_id=? AND tt.Date < CURDATE() ORDER BY tt.Date DESC, tt.Time DESC LIMIT 10`,[userId]); res.json({ upcoming: up, history: hist, available: [] }); } catch(err){next(err);} });
+app.get('/api/member/tee-times', authenticateToken, async (req, res, next) => {
+  if (req.user.role !== 'member')
+    return res.status(403).json({ error: 'Member only.' });
+  const userId = req.user.userId;
+  try {
+    // your existing upcoming...
+    const [up] = await dbPool.query(`
+      SELECT
+        tt.Tee_time_id AS id,
+        tt.Date        AS date,
+        tt.Time        AS time,
+        tt.Status      AS status,
+        gc.Course_name AS courseName
+      FROM TEE_TIME tt
+      JOIN MEMBER_TEE_TIME mtt ON tt.Tee_time_id = mtt.Tee_time_id
+      JOIN GOLF_COURSE gc ON tt.Course_id = gc.Course_id
+      WHERE mtt.user_id = ? AND tt.Date >= CURDATE()
+      ORDER BY tt.Date, tt.Time
+    `, [userId]);
+
+    // your existing history...
+    const [hist] = await dbPool.query(`
+      SELECT
+        tt.Tee_time_id AS id,
+        tt.Date        AS date,
+        tt.Time        AS time,
+        tt.Status      AS status,
+        gc.Course_name AS courseName
+      FROM TEE_TIME tt
+      JOIN MEMBER_TEE_TIME mtt ON tt.Tee_time_id = mtt.Tee_time_id
+      JOIN GOLF_COURSE gc ON tt.Course_id = gc.Course_id
+      WHERE mtt.user_id = ? AND tt.Date < CURDATE()
+      ORDER BY tt.Date DESC, tt.Time DESC
+      LIMIT 10
+    `, [userId]);
+
+    // **NEW** available slots query
+    const [avail] = await dbPool.query(`
+      SELECT
+        tt.Tee_time_id     AS id,
+        tt.Date            AS date,
+        tt.Time            AS time,
+        tt.Available_slots AS spotsAvailable,
+        gc.Course_name     AS courseName
+      FROM TEE_TIME tt
+      JOIN GOLF_COURSE gc ON tt.Course_id = gc.Course_id
+      WHERE tt.Date >= CURDATE() AND tt.Available_slots > 0
+      ORDER BY tt.Date, tt.Time
+    `);
+
+    res.json({ upcoming: up, history: hist, available: avail });
+  } catch (err) {
+    next(err);
+  }
+});
 // GET /api/member/available-tee-times
 app.get('/api/member/available-tee-times', async (req, res, next) => { if (!req.user || req.user.role !== 'member') { return res.status(403).json({ error: 'Forbidden' }); } const { date } = req.query; if (!date) return res.status(400).json({ error: 'Date required' }); try { const [times] = await dbPool.query(`SELECT tt.Tee_time_id, tt.Date, tt.Time, tt.Available_slots, gc.Course_name, gc.Course_id FROM TEE_TIME tt JOIN GOLF_COURSE gc ON tt.Course_id = gc.Course_id WHERE tt.Date = ? AND tt.Available_slots > 0 ORDER BY tt.Time`, [date]); res.json(times); } catch (error) { next(error); } });
 // POST /api/member/book-tee-time

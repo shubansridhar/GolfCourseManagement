@@ -135,6 +135,31 @@ app.post('/api/admin/employees', async (req, res, next) => {
 });
 
 
+// ---> ADDED/VERIFIED: DELETE /api/admin/users/:userId <---
+app.delete('/api/admin/users/:userId', async (req, res, next) => {
+    if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden: Only admins can delete users.' });
+    const targetUserId = parseInt(req.params.userId, 10);
+    const requesterUserId = req.user.userId;
+    if (isNaN(targetUserId)) return res.status(400).json({ error: 'Invalid User ID.' });
+    if (targetUserId === requesterUserId) return res.status(400).json({ error: 'Cannot delete self.' });
+
+    try {
+        const [result] = await dbPool.query('DELETE FROM users WHERE user_id = ?', [targetUserId]);
+        if (result.affectedRows === 0) return res.status(404).json({ error: `User ID ${targetUserId} not found.` });
+        console.log(`Admin ${req.user.username} deleted user ID: ${targetUserId}`);
+        res.status(204).send(); // Success, no content to return
+    } catch (error) {
+        // Check if it failed because of constraints NOT covered by cascade (shouldn't happen with current schema)
+        if (error.code === 'ER_ROW_IS_REFERENCED_2' || error.code === 'ER_ROW_IS_REFERENCED') {
+             console.error(`FK Constraint Error Deleting User ${targetUserId}:`, error.message);
+             return res.status(409).json({ error: `Cannot delete user: Still referenced elsewhere.` });
+        }
+        console.error(`Error deleting user ${targetUserId}:`, error);
+        next(error);
+    }
+});
+// ----------------------------------------------------
+
 // 1. MEMBER_TEE_TIME → show member name instead of user_id
 app.get('/api/tables/MEMBER_TEE_TIME', authenticateToken, async (req, res, next) => {
   try {

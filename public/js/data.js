@@ -146,7 +146,7 @@ async function loadTableData(tableName) {
 
 /**
  * Render table data to the DOM
- * MODIFIED: Explicitly hide Actions column for MEMBER and EMPLOYEE tables
+ * CORRECTED: Use currentTableUpper for column filtering condition
  */
 function renderTableData(structure, tableData) {
     const dataTable = document.getElementById('data-table'); if (!dataTable) return;
@@ -154,27 +154,32 @@ function renderTableData(structure, tableData) {
 
     const currentTableUpper = window.currentTable?.toUpperCase();
     // Determine if the Actions column should be shown for this table
-    const showActionsColumn = !(currentTableUpper === 'MEMBER' || currentTableUpper === 'EMPLOYEE');
+    const hideActionsColumn = (currentTableUpper === 'MEMBER' || currentTableUpper === 'EMPLOYEE');
 
-    // ---> Add Log <---
-    console.log(`Rendering table: ${currentTableUpper}, Show Actions Column: ${showActionsColumn}`);
+    console.log(`--- Rendering Table ---`);
+    console.log(`Current Table (Upper): ${currentTableUpper}`);
+    console.log(`Hide Actions Column? ${hideActionsColumn}`);
 
-    // Filter structure based on current table (e.g., hide Handicap for Member)
+    // Filter structure based on current table
     let columnsToRender = structure;
+    // ---> CORRECTED: Use currentTableUpper for the condition <---
     if (currentTableUpper === 'MEMBER') {
-        const hiddenMemberColumns = ['HANDICAP'];
-        columnsToRender = structure.filter(col => !hiddenMemberColumns.includes(col.Field.toUpperCase()));
+        const hiddenMemberColumns = ['HANDICAP']; // Define columns to hide for MEMBER table view
+        console.log("Filtering columns for MEMBER table, hiding:", hiddenMemberColumns);
+        columnsToRender = structure.filter(col =>
+            !hiddenMemberColumns.includes(col.Field.toUpperCase())
+        );
     }
     // Add other column filtering if needed...
 
-    // Determine column count for colspan (Actions column only counts if shown)
-    const columnCount = columnsToRender.length + (showActionsColumn ? 1 : 0);
+    // Determine column count for colspan
+    const columnCount = columnsToRender.length + (hideActionsColumn ? 0 : 1);
 
     // Render headers with friendly names
     const friendlyColumnNames = { USER_ID:'User ID', MEMBER_PLAN_ID:'Plan', LNAME:'Last Name', FNAME:'First Name', EMAIL:'Email Address', PHONE_NUMBER:'Phone Number', HANDICAP:'Hcp', JOINDATE:'Joined', TEE_TIME_ID:'TT ID', EQUIPMENT_ID:'Eq ID', RENTAL_DATE:'Rented', RETURN_DATE:'Due', RETURNED:'Ret?', PLAN_ID:'Plan ID', PLAN_TYPE:'Plan Type', FEES:'Fees', AVAILABILITY:'Avail?', COURSE_ID:'Course ID', HOLE_ID:'Hole ID', EMP_FNAME:'First Name', EMP_LNAME:'Last Name', ROLE:'App Role', RENTAL_DISCOUNT:'Discount', DISTANCE_TO_PIN:'Distance', AVAILABLE_SLOTS:'Slots', HIREDATE:'Hired', COURSE_NAME:'Course Name', RENTAL_ID:'Rental ID', RENTAL_FEE:'Fee', PLAN_START_DATE:'Start', PLAN_END_DATE:'End' };
     thead.innerHTML = columnsToRender.map(col =>
         `<th>${friendlyColumnNames[col.Field.toUpperCase()] || col.Field}</th>`
-    ).join('') + (showActionsColumn ? '<th>Actions</th>' : ''); // Conditionally add Actions header
+    ).join('') + (hideActionsColumn ? '' : '<th>Actions</th>');
 
     // Render table data rows
     if (tableData.length === 0) {
@@ -185,52 +190,140 @@ function renderTableData(structure, tableData) {
     tbody.innerHTML = tableData.map(row => {
          const recordId = currentPrimaryKeyField ? row[currentPrimaryKeyField] : null;
          const actionsDisabled = !recordId ? 'disabled' : '';
-         let actionsCellHTML = ''; // Start with empty string for the actions cell
+         let actionsCellHTML = '';
 
-         // Generate buttons and the actions cell ONLY if showActionsColumn is true
-         if (showActionsColumn) {
-             let actionButtons = []; // Array to hold button HTML strings
-
-             // EDIT Button Logic
+         if (!hideActionsColumn) {
+             let actionButtons = [];
              let showEditButton = !noEditTables.includes(currentTableUpper);
              if (showEditButton && (currentTableUpper === 'GOLF_COURSE' || currentTableUpper === 'HOLE' || currentTableUpper === 'TEE_TIME')) {
                  if (!isAdmin()) { showEditButton = false; }
              }
              if (showEditButton) { actionButtons.push(`<button class="btn-edit" ${actionsDisabled} title="Edit"><i class="fas fa-edit"></i></button>`); }
+             if (!noDeleteTables.includes(currentTableUpper)) { actionButtons.push(`<button class="btn-delete" ${actionsDisabled} title="Delete"><i class="fas fa-trash"></i></button>`); }
 
-             // DELETE Button Logic
-             if (!noDeleteTables.includes(currentTableUpper)) {
-                actionButtons.push(`<button class="btn-delete" ${actionsDisabled} title="Delete"><i class="fas fa-trash"></i></button>`);
+             // Assign plan button logic (now correctly placed - only added if actions are shown AND it's MEMBER table AND employee)
+             if (currentTableUpper === 'MEMBER' && currentUser?.role === 'employee') {
+                 const memberName = `${row.Fname || ''} ${row.Lname || ''}`.trim();
+                 actionButtons.push(`<button class="btn-assign-plan" data-userid="${recordId}" data-name="${escapeHtml(memberName)}" title="Assign/Change Plan"><i class="fas fa-id-card"></i></button>`);
              }
-             // Note: Assign Plan button is inside the MEMBER table check, so it won't render if showActionsColumn is false
 
-             // Create the table cell string if there are buttons
-             if (actionButtons.length > 0) {
-                actionsCellHTML = `<td class="actions">${actionButtons.join('&nbsp;')}</td>`;
-             } else {
-                 actionsCellHTML = `<td class="actions"></td>`; // Render an empty cell if no actions allowed for this specific table
-             }
+             if (actionButtons.length > 0) { actionsCellHTML = `<td class="actions">${actionButtons.join('&nbsp;')}</td>`; }
+             else { actionsCellHTML = `<td class="actions"></td>`; }
          }
-         // If showActionsColumn is false, actionsCellHTML remains empty ""
 
-         // Render the row, conditionally adding the actions cell
          return `<tr ${recordId ? `data-id="${recordId}"` : ''}>
                     ${columnsToRender.map(col => `<td>${escapeHtml(formatCellValue(row[col.Field]))}</td>`).join('')}
                     ${actionsCellHTML}
                  </tr>`;
     }).join('');
 
-    // Attach listeners - These will only find buttons if they were rendered
+    // Attach listeners
     tbody.querySelectorAll('.btn-edit').forEach(btn => { btn.addEventListener('click', function (e) { e.stopPropagation(); const row = this.closest('tr'); if (row && row.dataset.id) editRecord(row.dataset.id); }); });
     tbody.querySelectorAll('.btn-delete').forEach(btn => { btn.addEventListener('click', function (e) { e.stopPropagation(); const row = this.closest('tr'); if (row && row.dataset.id) deleteRecord(row.dataset.id); }); });
-    // Assign plan listener - button only rendered for MEMBER table anyway
     tbody.querySelectorAll('.btn-assign-plan').forEach(btn => { btn.addEventListener('click', function (e) { e.stopPropagation(); const userId = this.dataset.userid; const userName = this.dataset.name; if (userId) { openAssignPlanModal(userId, userName); } else { console.error("Missing user ID"); showNotification("Cannot assign plan: User ID missing.","error"); }}); });
 }
 
 
 function formatCellValue(value) { if (value === null || value === undefined) return '-'; const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(.\d+)?Z?$/; if (typeof value === 'string' && dateRegex.test(value)) { const date = new Date(value); if (!isNaN(date.getTime())) return date.toLocaleDateString(); } if (typeof value === 'boolean') return value ? 'Yes' : 'No'; if (typeof value === 'object' && value !== null && value.type === 'Buffer' && Array.isArray(value.data)) return value.data[0] === 1 ? 'Yes' : 'No'; return value.toString(); }
 
-async function loadAndRenderUsers() { const container = document.getElementById('user-list-container'); const tableBody = document.querySelector('#user-list-table tbody'); const loadingIndicator = container?.querySelector('.loading'); if (!container || !tableBody || !loadingIndicator) { console.error('User management elements missing.'); return; } loadingIndicator.style.display = 'block'; tableBody.innerHTML = ''; try { const response = await authenticatedFetch(`${API_BASE_URL}/admin/users`); if (!response.ok) { const d = await response.json(); throw new Error(d.error || 'Server error'); } const users = await response.json(); if (users.length === 0) { tableBody.innerHTML = `<tr><td colspan="4" class="empty-table">No users found.</td></tr>`; } else { tableBody.innerHTML = users.map(user => `<tr><td>${user.user_id}</td><td>${escapeHtml(user.username)}</td><td>${escapeHtml(user.role)}</td><td>${new Date(user.created_at).toLocaleString()}</td></tr>`).join(''); } } catch (error) { console.error('Err load users:', error); showNotification(`Failed load users: ${error.message}`, 'error'); tableBody.innerHTML = `<tr><td colspan="4" class="error-table">Failed load users.</td></tr>`; } finally { loadingIndicator.style.display = 'none'; } }
+// ---> UPDATED: loadAndRenderUsers to add Actions column/button <---
+async function loadAndRenderUsers() {
+    const container = document.getElementById('user-list-container');
+    const table = document.getElementById('user-list-table');
+    const tableHead = table?.querySelector('thead tr');
+    const tableBody = table?.querySelector('tbody');
+    const loadingIndicator = container?.querySelector('.loading');
+    if (!container || !table || !tableHead || !tableBody || !loadingIndicator) { console.error('User management view elements missing.'); return; }
+
+    loadingIndicator.style.display = 'block';
+    tableBody.innerHTML = '';
+
+    // Add Actions header
+    tableHead.innerHTML = `<th>User ID</th><th>Username</th><th>Role</th><th>Created At</th><th>Actions</th>`;
+
+    try {
+        const response = await authenticatedFetch(`${API_BASE_URL}/admin/users`);
+        if (!response.ok) { const d = await response.json(); throw new Error(d.error || 'Server error'); }
+        const users = await response.json();
+
+        if (users.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="5" class="empty-table">No users found.</td></tr>`; // Incremented colspan
+        } else {
+            const currentUserId = currentUser?.userId; // Get current admin's ID
+
+            tableBody.innerHTML = users.map(user => {
+                // Disable delete button for the currently logged-in admin
+                const isSelf = user.user_id === currentUserId;
+                const deleteDisabled = isSelf ? 'disabled' : '';
+                const deleteTitle = isSelf ? 'Cannot delete yourself' : 'Delete User';
+
+                return `
+                    <tr data-userid="${user.user_id}">
+                        <td>${user.user_id}</td>
+                        <td>${escapeHtml(user.username)}</td>
+                        <td>${escapeHtml(user.role)}</td>
+                        <td>${new Date(user.created_at).toLocaleString()}</td>
+                        <td class="actions">
+                            <button class="btn-delete-user" data-userid="${user.user_id}" data-username="${escapeHtml(user.username)}" title="${deleteTitle}" ${deleteDisabled}>
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            </td>
+                    </tr>`;
+            }).join('');
+
+            // Attach listener attachment for delete buttons
+            tableBody.querySelectorAll('.btn-delete-user').forEach(btn => {
+                if (!btn.disabled) { // Only attach if not disabled
+                    btn.addEventListener('click', function() {
+                        const userIdToDelete = this.dataset.userid;
+                        const usernameToDelete = this.dataset.username;
+                        deleteUser(userIdToDelete, usernameToDelete); // Call delete handler below
+                    });
+                }
+            });
+        }
+    } catch (error) { console.error('Err load users:', error); showNotification(`Failed load users: ${error.message}`, 'error'); tableBody.innerHTML = `<tr><td colspan="5" class="error-table">Failed load users.</td></tr>`; } // Incremented colspan
+    finally { loadingIndicator.style.display = 'none'; }
+}
+
+// ---> ADDED: Function to handle user deletion <---
+/**
+ * Deletes a user from the 'users' table after confirmation.
+ * @param {string} userIdToDelete
+ * @param {string} usernameToDelete
+ */
+async function deleteUser(userIdToDelete, usernameToDelete) {
+    if (!userIdToDelete || !usernameToDelete) {
+        showNotification("Cannot delete user: ID or username missing.", "error");
+        return;
+    }
+    // Provide more context in confirmation
+    if (!confirm(`Are you sure you want to permanently delete user '${usernameToDelete}' (ID: ${userIdToDelete})?\n\nThis will also delete their associated profile and cannot be undone.`)) {
+        return; // User cancelled
+    }
+
+    console.log(`Attempting to delete user ${userIdToDelete}`);
+    try {
+        // Call the specific admin route for deleting users
+        const url = `${API_BASE_URL}/admin/users/${userIdToDelete}`;
+        const response = await authenticatedFetch(url, {
+            method: 'DELETE'
+        });
+
+        // Check for 204 No Content or other success codes
+        if (response.status === 204 || response.ok) {
+            showNotification(`User '${usernameToDelete}' deleted successfully!`, 'success');
+            loadAndRenderUsers(); // Refresh the user list view
+        } else {
+            const result = await response.json().catch(()=>({ error: `Deletion failed with status ${response.status}` }));
+            throw new Error(result.error || `Failed to delete user.`);
+        }
+    } catch (error) {
+        console.error("Error deleting user:", error);
+        showNotification(`Error deleting user: ${error.message}`, 'error');
+    }
+}
+// ----------------------------------------------------
 
 function escapeHtml(unsafe) { if (unsafe === null || unsafe === undefined) return ''; return unsafe.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
 
@@ -424,7 +517,7 @@ async function handleAssignPlanSubmit() {
 // ---> UPDATED Exports <---
 export {
     fetchTablesAndPopulateDashboard, loadTableData, loadAndRenderUsers,
-    openRecordModal,       // Export combined modal function
-    handleModalFormSubmit, // Export combined submit handler
-    handleAddAdminSubmit, handleAddEmployeeSubmit, handleAssignPlanSubmit
+    openRecordModal, handleModalFormSubmit, handleAddAdminSubmit,
+    handleAddEmployeeSubmit, handleAssignPlanSubmit
+    // deleteUser is internal, called by listener added in loadAndRenderUsers
 };

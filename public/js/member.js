@@ -75,20 +75,22 @@ async function fetchMemberProfile() {
  */
 async function fetchMembershipPlan() {
     try {
-        const response = await authenticatedFetch(`${MEMBER_API}/plans`);
-        if (!response.ok) throw new Error('Failed to fetch membership plan data');
+        const response = await authenticatedFetch(`${MEMBER_API}/profile`);
+        if (!response.ok) throw new Error('Failed to fetch membership profile data');
 
-        const data = await response.json();
+        const profile = await response.json();
 
-        // Ensure we return a valid object with all expected properties
+        // Map backend fields to frontend-friendly structure
         return {
-            name: data.name || 'Standard Membership',
-            type: data.type || 'Regular',
-            status: data.status || 'Active',
-            startDate: data.startDate || new Date().toISOString(),
-            renewalDate: data.renewalDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
-            fee: data.fee || 0,
-            benefits: Array.isArray(data.benefits) ? data.benefits : ['Basic course access']
+            name: profile.planType || 'No Plan Selected',
+            type: profile.planType || 'Regular',
+            status: profile.planType ? 'Active' : 'Inactive',
+            startDate: profile.joinDate || new Date().toISOString(),
+            renewalDate: new Date(new Date(profile.joinDate).setFullYear(new Date(profile.joinDate).getFullYear() + 1)).toISOString(),
+            fee: profile.planFees || 0,
+            benefits: profile.rentalDiscount
+                ? [`${(profile.rentalDiscount * 100).toFixed(0)}% Rental Discount`]
+                : ['Basic course access']
         };
     } catch (error) {
         console.error('Error in fetchMembershipPlan:', error);
@@ -156,7 +158,9 @@ function renderMembershipPlan() {
     const statusClass = status ? status.toLowerCase() : 'active';
     const startDate = membershipPlan.startDate ? new Date(membershipPlan.startDate).toLocaleDateString() : 'N/A';
     const renewalDate = membershipPlan.renewalDate ? new Date(membershipPlan.renewalDate).toLocaleDateString() : 'N/A';
-    const fee = membershipPlan.fee !== undefined ? membershipPlan.fee.toFixed(2) : '0.00';
+    let fee = parseFloat(membershipPlan.fee);
+    if (isNaN(fee)) fee = 0;
+    fee = fee.toFixed(2);
     const benefits = Array.isArray(membershipPlan.benefits) ? membershipPlan.benefits : [];
 
     membershipContent.innerHTML = `

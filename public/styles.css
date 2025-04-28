@@ -1143,7 +1143,7 @@ select {
 /* remove the parent grid */
 .profile-info {
     display: block;
-    padding: 1rem 0;
+    padding: 15px;
 }
 
 /* make each <p> a flex‐row of [label][value] */
@@ -1207,6 +1207,10 @@ select {
     background-color: rgba(0, 0, 0, 0.03);
     border-radius: 8px;
     margin-bottom: 15px;
+}
+
+.plan-info {
+    padding: 15px;
 }
 
 .plan-type {

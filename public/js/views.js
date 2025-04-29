@@ -106,13 +106,21 @@ function showStatisticsView() {
         showAuthView();
         return;
     }
-    // Show the statistics view for all users
     hideAllViews();
-    const aV = document.getElementById('app-view'); if (aV) aV.style.display = 'block';
-    const sV = document.getElementById('statistics-view'); if (sV) sV.style.display = 'block';
+    const aV = document.getElementById('app-view');
+    if (aV) aV.style.display = 'block';
+    const sV = document.getElementById('statistics-view');
+    if (sV) sV.style.display = 'block';
     updateHeader();
-    // Determine context: admin for admin/employee, member otherwise
-    const context = (isAdmin() || isEmployee()) ? 'admin' : 'member';
+
+    // Provide explicit separate contexts for each user role
+    let context = 'member'; // default context
+    if (isAdmin()) {
+        context = 'admin';
+    } else if (isEmployee()) {
+        context = 'employee';
+    }
+    // Load statistics for specific role context
     loadStatisticsData(context);
 }
 function showUserManagementView() { if (!currentUser || !isAdmin()) { showDashboardView(); return; } hideAllViews(); const aV = document.getElementById('app-view'); if (aV) aV.style.display = 'block'; const uMV = document.getElementById('user-management-view'); if (uMV) uMV.style.display = 'block'; updateHeader(); }

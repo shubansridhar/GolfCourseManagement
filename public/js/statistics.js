@@ -20,8 +20,8 @@ async function loadStatisticsData(context = 'admin') {
     // Determine which container to use based *only* on context
     const selectorMap = {
         admin: '#statistics-view .stats-container',         // Main statistics page
-        employee: '#employee-view .stats-container.employee-stats', // Employee portal
-        member: '#member-view .stats-container.member-stats'    // Member portal
+        employee: '#statistics-view .stats-container', // Employee portal
+        member: '#statistics-view .stats-container'    // Member portal
     };
     // Always use the map based on context, default to admin if needed
     const containerSelector = selectorMap[context] || selectorMap.admin;

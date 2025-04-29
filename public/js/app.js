@@ -50,8 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Table View Navigation & Actions
     document.getElementById('back-to-dashboard-btn')?.addEventListener('click', handleBackToDashboard);
-    document.getElementById('add-record-btn')?.addEventListener('click', data.openAddRecordModal); // Listener for Add Record button
-
+    document.getElementById('add-record-btn')?.addEventListener('click', () => data.openRecordModal()); // Listener for Add Record button - Call the combined modal function in 'add' mode
     // Statistics View Navigation
     document.getElementById('back-to-dashboard-from-stats-btn')?.addEventListener('click', handleBackToDashboard);
     document.getElementById('refresh-stats-btn').addEventListener('click', () => {

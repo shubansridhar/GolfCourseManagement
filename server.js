@@ -151,8 +151,8 @@ app.delete('/api/admin/users/:userId', async (req, res, next) => {
     } catch (error) {
         // Check if it failed because of constraints NOT covered by cascade (shouldn't happen with current schema)
         if (error.code === 'ER_ROW_IS_REFERENCED_2' || error.code === 'ER_ROW_IS_REFERENCED') {
-             console.error(`FK Constraint Error Deleting User ${targetUserId}:`, error.message);
-             return res.status(409).json({ error: `Cannot delete user: Still referenced elsewhere.` });
+            console.error(`FK Constraint Error Deleting User ${targetUserId}:`, error.message);
+            return res.status(409).json({ error: `Cannot delete user: Still referenced elsewhere.` });
         }
         console.error(`Error deleting user ${targetUserId}:`, error);
         next(error);
@@ -288,7 +288,7 @@ app.get('/api/tables/:tableName/:id', async (req, res, next) => {
     if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) { return res.status(403).json({ error: 'Forbidden.' }); }
     const { tableName, id } = req.params; const { primaryKey } = req.query;
     if (!tableName.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid table name.' });
-    if (tableName.toLowerCase() === 'users'||tableName.toLowerCase() === 'manages') return res.status(403).json({ error: 'Denied.' });
+    if (tableName.toLowerCase() === 'users' || tableName.toLowerCase() === 'manages') return res.status(403).json({ error: 'Denied.' });
     if (!primaryKey || !primaryKey.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'PK query param required.' });
     if (!id) return res.status(400).json({ error: 'ID required.' });
     const query = `SELECT * FROM \`${tableName}\` WHERE \`${primaryKey}\` = ?`;
@@ -304,7 +304,7 @@ app.post('/api/tables/:tableName', async (req, res, next) => { if (!req.user || 
 app.put('/api/tables/:tableName/:id', async (req, res, next) => {
     const { tableName, id } = req.params; const { primaryKey } = req.query; const dataToUpdate = req.body; const userRole = req.user?.role;
     if (!tableName.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid table name.' });
-    if (tableName.toLowerCase() === 'users'||tableName.toLowerCase() === 'manages') return res.status(403).json({ error: 'Denied.' });
+    if (tableName.toLowerCase() === 'users' || tableName.toLowerCase() === 'manages') return res.status(403).json({ error: 'Denied.' });
     if (!primaryKey || !primaryKey.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'PK query param required.' });
     if (!id) return res.status(400).json({ error: 'ID required.' });
     if (!dataToUpdate || Object.keys(dataToUpdate).length === 0) return res.status(400).json({ error: 'No update data.' });
@@ -331,9 +331,9 @@ app.delete('/api/tables/:tableName/:id', async (req, res, next) => { if (!req.us
 
 // --- Statistics Route --- (Query Updated)
 app.get('/api/statistics', async (req, res, next) => {
-    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) {
+    /*if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) {
         return res.status(403).json({ error: 'Forbidden: Admin/Employee only.' });
-    }
+    }*/
     const userId = req.user.userId;
     // Define metrics: key maps to SQL + optional params
     const metrics = [

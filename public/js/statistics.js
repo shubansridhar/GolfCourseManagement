@@ -16,9 +16,21 @@ Chart.register(...registerables);
 /**
  * Load and render statistics data.
  */
-async function loadStatisticsData() {
-    const container = document.querySelector('#statistics-view .stats-container');
-    if (!container) return;
+async function loadStatisticsData(context = 'admin') {
+    // Determine which container to use based *only* on context
+    const selectorMap = {
+        admin: '#statistics-view .stats-container',         // Main statistics page
+        employee: '#employee-view .stats-container.employee-stats', // Employee portal
+        member: '#member-view .stats-container.member-stats'    // Member portal
+    };
+    // Always use the map based on context, default to admin if needed
+    const containerSelector = selectorMap[context] || selectorMap.admin;
+
+    const container = document.querySelector(containerSelector);
+    if (!container) {
+        console.error(`Statistics container not found for selector: ${containerSelector}`);
+        return; // Exit if container doesn't exist
+    }
 
     // Show loading, hide stats grid
     const loading = container.querySelector('.loading');
@@ -37,9 +49,8 @@ async function loadStatisticsData() {
         Object.values(chartInstances).forEach(c => c.destroy());
         chartInstances = {};
         // Clear existing cards
-        const grid = container.querySelector('.stats-grid');
         grid.innerHTML = '';
-        // Configuration for each metric
+        // Global chart configs
         const chartConfigs = {
             usersByRole: { title: 'Users by Role', type: 'pie', icon: 'fas fa-user-tag' },
             avgAccountAge: { title: 'Avg Account Age (days)', type: 'bar', icon: 'fas fa-hourglass-half' },
@@ -57,8 +68,15 @@ async function loadStatisticsData() {
             myReturnedRentals: { title: 'My Returned Rentals', type: 'bar', icon: 'fas fa-undo-alt' },
             myAvgRentalDuration: { title: 'My Avg Rental Duration (days)', type: 'bar', icon: 'fas fa-hourglass-end' }
         };
+        // Define which metrics belong to each context
+        const contextMap = {
+            admin: ['usersByRole', 'avgAccountAge', 'totalPlans', 'coursesByStatus', 'holesByPar'],
+            employee: ['bookingsToday', 'upcomingBookings', 'avgAvailSlots', 'rentalsThisMonth', 'pendingReturns'],
+            member: ['myUpcomingTeeTimes', 'myPastTeeTimes', 'myActiveRentals', 'myReturnedRentals', 'myAvgRentalDuration']
+        };
+        const metricKeys = contextMap[context] || contextMap.admin;
         // Dynamically render each metric card and chart
-        for (const key of Object.keys(chartConfigs)) {
+        for (const key of metricKeys) {
             const cfg = chartConfigs[key];
             const dataRows = stats[key] || [];
             // build card

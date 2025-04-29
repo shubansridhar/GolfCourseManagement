@@ -106,14 +106,24 @@ function showStatisticsView() {
         showAuthView();
         return;
     }
-    // Show the statistics view for all users
-    hideAllViews();
-    const aV = document.getElementById('app-view'); if (aV) aV.style.display = 'block';
-    const sV = document.getElementById('statistics-view'); if (sV) sV.style.display = 'block';
-    updateHeader();
-    // Determine context: admin for admin/employee, member otherwise
-    const context = (isAdmin() || isEmployee()) ? 'admin' : 'member';
-    loadStatisticsData(context);
+    // Admin and Employee see the main statistics page, but load different data
+    if (isAdmin() || isEmployee()) {
+        hideAllViews();
+        const aV = document.getElementById('app-view'); if (aV) aV.style.display = 'block';
+        const sV = document.getElementById('statistics-view'); if (sV) sV.style.display = 'block'; // Show the main stats page
+        updateHeader();
+        // Load context-specific data into the main statistics view
+        if (isEmployee()) {
+            // Load 'employee' stats, but force render into the main #statistics-view container
+            loadStatisticsData('employee', '#statistics-view .stats-container');
+        } else {
+            // Admins see 'admin' stats in the main #statistics-view container
+            loadStatisticsData('admin', '#statistics-view .stats-container'); // Can optionally specify container too
+        }
+    } else {
+        // Member: redirect to member view which loads member stats
+        showMemberView();
+    }
 }
 function showUserManagementView() { if (!currentUser || !isAdmin()) { showDashboardView(); return; } hideAllViews(); const aV = document.getElementById('app-view'); if (aV) aV.style.display = 'block'; const uMV = document.getElementById('user-management-view'); if (uMV) uMV.style.display = 'block'; updateHeader(); }
 

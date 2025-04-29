@@ -15,16 +15,23 @@ Chart.register(...registerables);
 
 /**
  * Load and render statistics data.
+ * @param {string} context - 'admin', 'employee', or 'member' to determine which stats to load.
+ * @param {string|null} [overrideContainerSelector=null] - Optional selector for the target container, overrides default map.
  */
-async function loadStatisticsData(context = 'admin') {
-    // Determine which container to use based *only* on context
-    const selectorMap = {
-        admin: '#statistics-view .stats-container',         // Main statistics page
-        employee: '#employee-view .stats-container.employee-stats', // Employee portal
-        member: '#member-view .stats-container.member-stats'    // Member portal
-    };
-    // Always use the map based on context, default to admin if needed
-    const containerSelector = selectorMap[context] || selectorMap.admin;
+async function loadStatisticsData(context = 'admin', overrideContainerSelector = null) {
+    let containerSelector;
+    if (overrideContainerSelector) {
+        containerSelector = overrideContainerSelector;
+    } else {
+        // Determine which container to use based *only* on context
+        const selectorMap = {
+            admin: '#statistics-view .stats-container',         // Main statistics page
+            employee: '#employee-view .stats-container.employee-stats', // Employee portal
+            member: '#member-view .stats-container.member-stats'    // Member portal
+        };
+        // Always use the map based on context, default to admin if needed
+        containerSelector = selectorMap[context] || selectorMap.admin;
+    }
 
     const container = document.querySelector(containerSelector);
     if (!container) {

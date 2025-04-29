@@ -52,21 +52,21 @@ async function loadStatisticsData(context = 'admin') {
         grid.innerHTML = '';
         // Global chart configs
         const chartConfigs = {
-            usersByRole: { title: 'Users by Role', type: 'pie', icon: 'fas fa-user-tag' },
-            avgAccountAge: { title: 'Avg Account Age (days)', type: 'bar', icon: 'fas fa-hourglass-half' },
-            totalPlans: { title: 'Total Plans', type: 'bar', icon: 'fas fa-list-alt' },
-            coursesByStatus: { title: 'Courses by Status', type: 'bar', icon: 'fas fa-golf-ball' },
-            holesByPar: { title: 'Holes by Par', type: 'bar', icon: 'fas fa-hashtag' },
-            bookingsToday: { title: 'Bookings Today', type: 'bar', icon: 'fas fa-calendar-day' },
-            upcomingBookings: { title: 'Upcoming Bookings', type: 'bar', icon: 'fas fa-calendar-plus' },
-            avgAvailSlots: { title: 'Avg Available Slots', type: 'bar', icon: 'fas fa-th-list' },
-            rentalsThisMonth: { title: 'Rentals This Month', type: 'bar', icon: 'fas fa-shopping-cart' },
-            pendingReturns: { title: 'Pending Returns', type: 'bar', icon: 'fas fa-box-open' },
-            myUpcomingTeeTimes: { title: 'My Upcoming Tee Times', type: 'bar', icon: 'fas fa-calendar-check' },
-            myPastTeeTimes: { title: 'My Past Tee Times', type: 'bar', icon: 'fas fa-history' },
-            myActiveRentals: { title: 'My Active Rentals', type: 'bar', icon: 'fas fa-warehouse' },
-            myReturnedRentals: { title: 'My Returned Rentals', type: 'bar', icon: 'fas fa-undo-alt' },
-            myAvgRentalDuration: { title: 'My Avg Rental Duration (days)', type: 'bar', icon: 'fas fa-hourglass-end' }
+            usersByRole: { title: 'Users by Role', type: 'pie', icon: 'fas fa-user-tag', colors: ['#FF6384','#36A2EB','#FFCE56']  },
+            avgAccountAge: { title: 'Avg Account Age', type: 'bar', icon: 'fas fa-hourglass-half', numberOnly: true },
+            totalPlans:     { title: 'Total Plans',     type: 'bar', icon: 'fas fa-list-alt',      numberOnly: true },
+            coursesByStatus: { title: 'Course Status', type: 'bar', icon: 'fas fa-golf-ball',  numberOnly: true },
+            holesByPar: { title: 'Holes by Par', type: 'bar', icon: 'fas fa-hashtag', colors: ['#FF6384','#36A2EB','#FFCE56'] },
+            bookingsToday: { title: 'Bookings Today', type: 'bar', icon: 'fas fa-calendar-day', numberOnly: true },
+            upcomingBookings: { title: 'Upcoming Bookings', type: 'bar', icon: 'fas fa-calendar-plus', numberOnly: true  },
+            avgAvailSlots: { title: 'Avg Available Tee Time Slots', type: 'bar', icon: 'fas fa-th-list', numberOnly: true },
+            rentalsThisMonth: { title: 'Rentals This Month', type: 'bar', icon: 'fas fa-shopping-cart', numberOnly: true },
+            pendingReturns: { title: 'Pending Returns', type: 'bar', icon: 'fas fa-box-open', numberOnly: true },
+            myUpcomingTeeTimes: { title: 'My Upcoming Tee Times', type: 'bar', icon: 'fas fa-calendar-check', numberOnly: true },
+            myPastTeeTimes: { title: 'My Past Tee Times', type: 'bar', icon: 'fas fa-history', numberOnly: true },
+            myActiveRentals: { title: 'My Active Rentals', type: 'bar', icon: 'fas fa-warehouse', numberOnly: true },
+            myReturnedRentals: { title: 'My Returned Rentals', type: 'bar', icon: 'fas fa-undo-alt', numberOnly: true },
+            myAvgRentalDuration: { title: 'My Avg Rental Duration (days)', type: 'bar', icon: 'fas fa-hourglass-end', numberOnly: true }
         };
         // Define which metrics belong to each context
         const contextMap = {
@@ -77,29 +77,63 @@ async function loadStatisticsData(context = 'admin') {
         const metricKeys = contextMap[context] || contextMap.admin;
         // Dynamically render each metric card and chart
         for (const key of metricKeys) {
-            const cfg = chartConfigs[key];
+            const cfg      = chartConfigs[key];
             const dataRows = stats[key] || [];
-            // build card
-            const card = document.createElement('div'); card.className = 'stats-card';
-            const title = document.createElement('h3'); title.innerHTML = `<i class="${cfg.icon}"></i> ${cfg.title}`; card.appendChild(title);
-            const canvas = document.createElement('canvas'); canvas.id = `chart-${key}`; card.appendChild(canvas);
-            grid.appendChild(card);
-            // map rows to labels/values
-            let labels = [], values = [];
-            if (dataRows.length > 1 && dataRows[0].label !== undefined) {
+          
+            // 1) build card + title
+            const card  = document.createElement('div');
+            card.className = 'stats-card';
+            card.innerHTML = `<h3><i class="${cfg.icon}"></i> ${cfg.title}</h3>`;
+          
+            // 2) numberOnly? just render the Big Number
+            if (cfg.numberOnly && dataRows.length === 1) {
+              const numEl = document.createElement('div');
+              numEl.className = 'stat-number';
+              numEl.textContent = dataRows[0].value;
+              card.appendChild(numEl);
+          
+            } else {
+              // 3) otherwise make a <canvas> + Chart.js
+              const canvas = document.createElement('canvas');
+              canvas.id  = `chart-${key}`;
+              card.appendChild(canvas);
+          
+              // extract labels & values
+              let labels = [], values = [];
+              if (dataRows.length > 1 && dataRows[0].label !== undefined) {
                 labels = dataRows.map(r => r.label);
                 values = dataRows.map(r => r.value);
-            } else if (dataRows.length === 1) {
+              } else if (dataRows.length === 1) {
                 labels = [cfg.title];
                 values = [dataRows[0].value];
-            }
-            const ctx = canvas.getContext('2d');
-            chartInstances[key] = new Chart(ctx, {
+              }
+              
+              const hideLegend = key === 'holesByPar';
+              const ctx = canvas.getContext('2d');
+              chartInstances[key] = new Chart(ctx, {
                 type: cfg.type,
-                data: { labels, datasets: [{ label: cfg.title, data: values, backgroundColor: 'rgba(54, 162, 235, 0.5)' }] },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
+                data: {
+                  labels,
+                  datasets: [{
+                    label: cfg.title,
+                    data: values,
+                    backgroundColor: cfg.colors || 'rgba(54, 162, 235, 0.5)'
+                  }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        display: !hideLegend
+                      }
+                    }
+                  }
+                });
+            }
+          
+            grid.appendChild(card);
+          }
 
         // Hide loading, show stats grid
         if (loading) loading.style.display = 'none';

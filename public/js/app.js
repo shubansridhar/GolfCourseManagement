@@ -1,6 +1,8 @@
 // public/js/app.js
 
 import * as auth from './auth.js';
+import { isAdmin, isEmployee } from './auth.js';
+import { loadStatisticsData } from './statistics.js';
 import * as views from './views.js';
 import * as data from './data.js';
 import * as member from './member.js';
@@ -52,7 +54,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Statistics View Navigation
     document.getElementById('back-to-dashboard-from-stats-btn')?.addEventListener('click', handleBackToDashboard);
-    document.getElementById('refresh-stats-btn')?.addEventListener('click', statistics.loadStatisticsData);
+    document.getElementById('refresh-stats-btn').addEventListener('click', () => {
+        const ctx = isAdmin()   ? 'admin'
+                  : isEmployee()? 'employee'
+                  :                  'member';
+        loadStatisticsData(ctx);
+      });
 
     // User Management View Navigation & Actions
     document.getElementById('back-to-dashboard-from-users-btn')?.addEventListener('click', handleBackToDashboard);

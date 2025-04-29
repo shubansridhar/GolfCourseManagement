@@ -1139,6 +1139,13 @@ select {
     padding: 20px;
 }
 
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+    text-align: center;
+    padding: 1rem 0;
+  }
+
 /* Profile Card */
 /* remove the parent grid */
 .profile-info {

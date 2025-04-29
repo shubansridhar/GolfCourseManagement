@@ -21,6 +21,7 @@ let memberTeeTimes = null;
 let availableTeeTimes = null;
 let availableEquipment = null;
 let memberRentals = null;
+let currentEquipmentTab = 'available';
 
 /**
  * Load all member data
@@ -40,7 +41,7 @@ async function loadMemberData() {
         // Cache the data
         memberProfile = profile;
         membershipPlan = plan;
-        memberTeeTimes = teeTimes.booked;
+        memberTeeTimes = teeTimes.upcoming;
         availableTeeTimes = teeTimes.available;
         availableEquipment = equipment.available;
         memberRentals = equipment.rentals;
@@ -49,7 +50,7 @@ async function loadMemberData() {
         renderMemberProfile();
         renderMembershipPlan();
         renderTeeTimes('upcoming');
-        renderEquipment('available');
+        renderEquipment(currentEquipmentTab);
 
         showLoading(false);
     } catch (error) {
@@ -65,28 +66,31 @@ async function loadMemberData() {
 async function fetchMemberProfile() {
     const response = await authenticatedFetch(`${MEMBER_API}/profile`);
     if (!response.ok) throw new Error('Failed to fetch profile data');
-    return response.json();
-}
-
+    const profile = await response.json();
+    memberProfile = profile;
+    return profile;
+  }
 /**
  * Fetch membership plan
  */
 async function fetchMembershipPlan() {
     try {
-        const response = await authenticatedFetch(`${MEMBER_API}/plans`);
-        if (!response.ok) throw new Error('Failed to fetch membership plan data');
+        const response = await authenticatedFetch(`${MEMBER_API}/profile`);
+        if (!response.ok) throw new Error('Failed to fetch membership profile data');
 
-        const data = await response.json();
+        const profile = await response.json();
 
-        // Ensure we return a valid object with all expected properties
+        // Map backend fields to frontend-friendly structure
         return {
-            name: data.name || 'Standard Membership',
-            type: data.type || 'Regular',
-            status: data.status || 'Active',
-            startDate: data.startDate || new Date().toISOString(),
-            renewalDate: data.renewalDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
-            fee: data.fee || 0,
-            benefits: Array.isArray(data.benefits) ? data.benefits : ['Basic course access']
+            name: profile.planType || 'No Plan Selected',
+            type: profile.planType || 'Regular',
+            status: profile.planType ? 'Active' : 'Inactive',
+            startDate: profile.joinDate || new Date().toISOString(),
+            renewalDate: new Date(new Date(profile.joinDate).setFullYear(new Date(profile.joinDate).getFullYear() + 1)).toISOString(),
+            fee: profile.planFees || 0,
+            benefits: profile.rentalDiscount
+                ? [`${(profile.rentalDiscount * 100).toFixed(0)}% Rental Discount`]
+                : ['Basic course access']
         };
     } catch (error) {
         console.error('Error in fetchMembershipPlan:', error);
@@ -126,21 +130,17 @@ async function fetchEquipment() {
  */
 function renderMemberProfile() {
     if (!memberProfile) return;
-
+    const { firstName, lastName, email, phone, joinDate } = memberProfile;
     const profileContent = document.getElementById('member-profile-content');
-    if (!profileContent) return;
-
     profileContent.innerHTML = `
-        <div class="profile-info">
-            <p><strong>Name:</strong> ${memberProfile.name || 'Not provided'}</p>
-            <p><strong>Email:</strong> ${memberProfile.email || 'Not provided'}</p>
-            <p><strong>Phone:</strong> ${memberProfile.phone || 'Not provided'}</p>
-            <p><strong>Address:</strong> ${memberProfile.address || 'Not provided'}</p>
-            <p><strong>Handicap:</strong> ${memberProfile.handicap || 'Not provided'}</p>
-            <p><strong>Member Since:</strong> ${new Date(memberProfile.joinDate).toLocaleDateString()}</p>
-        </div>
+      <div class="profile-info">
+        <p><strong>Name:</strong> ${firstName} ${lastName}</p>
+        <p><strong>Email:</strong> ${email || 'Not provided'}</p>
+        <p><strong>Phone:</strong> ${phone || 'Not provided'}</p>
+        <p><strong>Member Since:</strong> ${new Date(joinDate).toLocaleDateString()}</p>
+      </div>
     `;
-}
+  }
 
 /**
  * Render membership plan section
@@ -158,7 +158,9 @@ function renderMembershipPlan() {
     const statusClass = status ? status.toLowerCase() : 'active';
     const startDate = membershipPlan.startDate ? new Date(membershipPlan.startDate).toLocaleDateString() : 'N/A';
     const renewalDate = membershipPlan.renewalDate ? new Date(membershipPlan.renewalDate).toLocaleDateString() : 'N/A';
-    const fee = membershipPlan.fee !== undefined ? membershipPlan.fee.toFixed(2) : '0.00';
+    let fee = parseFloat(membershipPlan.fee);
+    if (isNaN(fee)) fee = 0;
+    fee = fee.toFixed(2);
     const benefits = Array.isArray(membershipPlan.benefits) ? membershipPlan.benefits : [];
 
     membershipContent.innerHTML = `
@@ -302,28 +304,20 @@ function renderEquipment(tab = 'available') {
                 content = `
                     <div class="equipment-list">
                         ${availableEquipment.map(equipment => {
-                    // Safe property access
-                    const type = equipment.type || 'Equipment';
-                    const brand = equipment.brand || 'Generic';
-                    const condition = equipment.condition || 'Good';
-                    const fee = equipment.fee !== undefined ? equipment.fee.toFixed(2) : '0.00';
-                    const id = equipment.id || '';
-
-                    return `
-                            <div class="equipment-card">
-                                <div class="equipment-info">
-                                    <h4>${type}</h4>
-                                    <p>Brand: ${brand}</p>
-                                    <p>Condition: ${condition}</p>
-                                    <p>Rental Fee: $${fee}</p>
-                                </div>
-                                <div class="equipment-actions">
-                                    <button class="btn btn-sm btn-success rent-equipment" data-id="${id}">
-                                        <i class="fas fa-shopping-cart"></i> Rent
-                                    </button>
-                                </div>
-                            </div>`;
-                }).join('')}
+                            const type = equipment.Type || 'Equipment';
+                            let fee = equipment.Rental_fee;
+                            if (typeof fee !== 'number') fee = parseFloat(fee);
+                            if (isNaN(fee)) fee = 0;
+                            const available = equipment.available || 0;
+                            return `
+                                <div class="equipment-card">
+                                    <div class="equipment-info">
+                                        <h4>${type}</h4>
+                                        <p>Rental Fee: $${fee.toFixed(2)}</p>
+                                        <p>Available: ${available}</p>
+                                    </div>
+                                </div>`;
+                        }).join('')}
                     </div>
                 `;
             }
@@ -336,31 +330,28 @@ function renderEquipment(tab = 'available') {
                 content = `
                     <div class="equipment-list">
                         ${memberRentals.map(rental => {
-                    // Safe property access
-                    const type = rental.type || 'Equipment';
-                    const brand = rental.brand || 'Generic';
-                    const rentalDate = rental.rentalDate ? new Date(rental.rentalDate).toLocaleDateString() : 'N/A';
-                    const dueDate = rental.dueDate ? new Date(rental.dueDate).toLocaleDateString() : 'N/A';
-                    const status = rental.status || 'Active';
-                    const statusClass = status ? status.toLowerCase() : 'active';
-                    const id = rental.id || '';
-
-                    return `
-                            <div class="equipment-card">
-                                <div class="equipment-info">
-                                    <h4>${type}</h4>
-                                    <p>Brand: ${brand}</p>
-                                    <p>Rented: ${rentalDate}</p>
-                                    <p>Due: ${dueDate}</p>
-                                    <p>Status: <span class="status ${statusClass}">${status}</span></p>
-                                </div>
-                                <div class="equipment-actions">
-                                    <button class="btn btn-sm btn-warning return-equipment" data-id="${id}">
-                                        <i class="fas fa-undo"></i> Return
-                                    </button>
-                                </div>
-                            </div>`;
-                }).join('')}
+                            console.log('Rendering rental:', rental);
+                            const type = rental.Type || 'Equipment';
+                            const rentalDate = rental.Rental_date ? new Date(rental.Rental_date).toLocaleDateString() : 'N/A';
+                            const returnDate = rental.Return_date ? new Date(rental.Return_date).toLocaleDateString() : 'N/A';
+                            const returned = rental.Returned ? 'Yes' : 'No';
+                            return `
+                                <div class="equipment-card">
+                                    <div class="equipment-info">
+                                        <h4>${type}</h4>
+                                        <p>Rental Date: ${rentalDate}</p>
+                                        <p>Return Date: ${returnDate}</p>
+                                        <p>Returned: ${returned}</p>
+                                    </div>
+                                    ${!rental.Returned ? `
+                                    <div class="equipment-actions">
+                                        <button class="btn btn-sm btn-warning return-equipment" data-id="${rental.Rental_id}">
+                                            <i class="fas fa-undo"></i> Return
+                                        </button>
+                                    </div>
+                                    ` : ''}
+                                </div>`;
+                        }).join('')}
                     </div>
                 `;
             }
@@ -369,12 +360,7 @@ function renderEquipment(tab = 'available') {
 
     equipmentTabContent.innerHTML = content;
 
-    // Add event listeners to buttons
-    if (tab === 'available') {
-        document.querySelectorAll('.rent-equipment').forEach(btn => {
-            btn.addEventListener('click', () => rentEquipment(btn.dataset.id));
-        });
-    } else if (tab === 'my-rentals') {
+    if (tab === 'my-rentals') {
         document.querySelectorAll('.return-equipment').forEach(btn => {
             btn.addEventListener('click', () => returnEquipment(btn.dataset.id));
         });
@@ -386,45 +372,44 @@ function renderEquipment(tab = 'available') {
  */
 async function bookTeeTime(teeTimeId) {
     try {
-        const response = await authenticatedFetch(`${MEMBER_API}/tee-times/${teeTimeId}/book`, {
-            method: 'POST'
-        });
-
-        if (response.ok) {
-            showNotification('Tee time booked successfully!', 'success');
-            await loadMemberData();
-        } else {
-            const error = await response.json();
-            showNotification(error.error || 'Failed to book tee time', 'error');
-        }
-    } catch (error) {
-        console.error('Error booking tee time:', error);
-        showNotification('Error booking tee time. Please try again.', 'error');
+      const res = await authenticatedFetch(`${MEMBER_API}/book-tee-time`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teeTimeId })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Booking failed');
+      }
+      showNotification('Tee time booked!', 'success');
+      await loadMemberData();
+    } catch (e) {
+      console.error(e);
+      showNotification(e.message, 'error');
     }
-}
+  }
 
 /**
  * Cancel a tee time
  */
 async function cancelTeeTime(teeTimeId) {
     try {
-        const response = await authenticatedFetch(`${MEMBER_API}/tee-times/${teeTimeId}/cancel`, {
-            method: 'POST'
-        });
-
-        if (response.ok) {
-            showNotification('Tee time cancelled successfully!', 'success');
-            await loadMemberData();
-        } else {
-            const error = await response.json();
-            showNotification(error.error || 'Failed to cancel tee time', 'error');
-        }
-    } catch (error) {
-        console.error('Error cancelling tee time:', error);
-        showNotification('Error cancelling tee time. Please try again.', 'error');
+      const res = await authenticatedFetch(`${MEMBER_API}/cancel-tee-time`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teeTimeId })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Cancel failed');
+      }
+      showNotification('Tee time cancelled!', 'success');
+      await loadMemberData();
+    } catch (e) {
+      console.error(e);
+      showNotification(e.message, 'error');
     }
-}
-
+  }
 /**
  * Rent equipment
  */
@@ -504,7 +489,17 @@ function setupMemberEventListeners() {
     });
 
     document.querySelectorAll('.equipment-tabs .tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => renderEquipment(btn.dataset.tab));
+        btn.addEventListener('click', async () => {
+            // Map tab names to match renderEquipment cases
+            if (btn.dataset.tab === 'available-equipment') {
+                currentEquipmentTab = 'available';
+            } else if (btn.dataset.tab === 'my-rentals') {
+                currentEquipmentTab = 'my-rentals';
+            } else {
+                currentEquipmentTab = btn.dataset.tab;
+            }
+            await loadMemberData();
+        });
     });
 
     // Refresh data button
@@ -513,23 +508,275 @@ function setupMemberEventListeners() {
 
 // Placeholder functions for modals (will be implemented later)
 function openProfileEditModal() {
-    console.log('Open profile edit modal');
-}
+    console.log('🔔 openProfileEditModal() called, memberProfile=', memberProfile);
+    if (!memberProfile) return;
+  
+    const modal = document.getElementById('profile-edit-modal');
+    const form  = document.getElementById('profile-edit-form');
+    if (!modal || !form) return;
+  
+    // Format the joinDate nicely
+    const since = memberProfile.joinDate
+      ? new Date(memberProfile.joinDate).toLocaleDateString()
+      : '';
+  
+    // Populate the form
+    form.innerHTML = `
+      <div class="form-group">
+        <label for="profile-firstName">First Name</label>
+        <input type="text" id="profile-firstName" name="firstName" class="form-control"
+               value="${memberProfile.firstName || ''}" required />
+      </div>
+      <div class="form-group">
+        <label for="profile-lastName">Last Name</label>
+        <input type="text" id="profile-lastName" name="lastName" class="form-control"
+               value="${memberProfile.lastName || ''}" required />
+      </div>
+      <div class="form-group">
+        <label for="profile-email">Email</label>
+        <input type="email" id="profile-email" name="email" class="form-control"
+               value="${memberProfile.email || ''}" />
+      </div>
+      <div class="form-group">
+        <label for="profile-phone">Phone</label>
+        <input type="tel" id="profile-phone" name="phone" class="form-control"
+               value="${memberProfile.phone || ''}" />
+      </div>
+    `;
+  
+    // Show the modal
+    modal.style.display = 'block';
+  
+    // Close handlers
+    document.getElementById('close-profile-modal')
+      .onclick = () => modal.style.display = 'none';
+    document.getElementById('cancel-profile-edit-btn')
+      .onclick = () => modal.style.display = 'none';
+  
+    // Save handler
+    const saveBtn = document.getElementById('save-profile-btn');
+    saveBtn.onclick = handleProfileSave;
+  }
+  
+  async function handleProfileSave() {
+    const form  = document.getElementById('profile-edit-form');
+    const modal = document.getElementById('profile-edit-modal');
+    if (!form) return;
+  
+    // Build the payload with camelCase keys
+    const payload = {
+      firstName: form.elements['firstName'].value.trim(),
+      lastName:  form.elements['lastName'].value.trim(),
+      email:     form.elements['email'].value.trim(),
+      phone:     form.elements['phone'].value.trim(),
+    };
+  
+    try {
+      const res = await authenticatedFetch(`${MEMBER_API}/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to update profile');
+      }
+  
+      showNotification('Profile updated successfully!', 'success');
+      modal.style.display = 'none';
+      // Re-fetch and re-render your profile view
+      await loadMemberData();
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      showNotification(error.message, 'error');
+    }
+  }
+  
 
 function openPlanChangeModal() {
     console.log('Open plan change modal');
 }
 
-function openBookTeeTimeModal() {
-    console.log('Open book tee time modal');
-}
-
+async function openBookTeeTimeModal() {
+    const modal = document.getElementById('tee-time-modal');
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Book Tee Time</h2>
+          <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="book-date">Select Date</label>
+            <input type="date" id="book-date" class="form-control" />
+            <button id="load-tee-times-btn" class="btn btn-sm btn-primary" style="margin-left:8px;">
+              Load
+            </button>
+          </div>
+          <div id="available-tee-times-list" style="margin-top:1rem;"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="cancel-booking-btn" class="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
+    `;
+    modal.style.display = 'block';
+  
+    // close handlers
+    modal.querySelector('.close').onclick = () => modal.style.display = 'none';
+    document.getElementById('cancel-booking-btn').onclick = () => modal.style.display = 'none';
+  
+    // hook up the Load button
+    document.getElementById('load-tee-times-btn').onclick = loadAvailableTeeTimes;
+  }
+  
+  async function loadAvailableTeeTimes() {
+    const date = document.getElementById('book-date').value;
+    if (!date) {
+      showNotification('Please pick a date first.', 'warning');
+      return;
+    }
+  
+    let times;
+    try {
+      const resp = await authenticatedFetch(`${MEMBER_API}/available-tee-times?date=${date}`);
+      if (!resp.ok) throw await resp.json();
+      times = await resp.json();
+    } catch (err) {
+      console.error(err);
+      showNotification(err.error || 'Failed to load tee times', 'error');
+      return;
+    }
+  
+    const list = document.getElementById('available-tee-times-list');
+    if (times.length === 0) {
+      list.innerHTML = '<p>No available slots on that date.</p>';
+      return;
+    }
+  
+    list.innerHTML = times.map(tt => `
+      <div class="tee-time-card">
+        <div class="tee-time-info">
+          <h4>${new Date(tt.Date).toLocaleDateString()} @ ${tt.Time}</h4>
+          <p><strong>Course:</strong> ${tt.Course_name}</p>
+          <p><strong>Slots:</strong> ${tt.Available_slots}</p>
+        </div>
+        <button class="btn btn-sm btn-success book-btn" data-id="${tt.Tee_time_id}">
+          <i class="fas fa-check"></i> Book
+        </button>
+      </div>
+    `).join('');
+  
+    // attach booking handlers
+    list.querySelectorAll('.book-btn').forEach(btn => {
+        btn.onclick = () => bookTeeTime(btn.dataset.id)
+          .then(() => document.getElementById('tee-time-modal').style.display = 'none');
+      });
+  }
+  
 function openRentEquipmentModal() {
-    console.log('Open rent equipment modal');
+    // Remove any existing modal
+    let modal = document.getElementById('rentEquipmentModal');
+    if (modal) modal.remove();
+
+    // Debug log
+    console.log('Available equipment for modal:', availableEquipment);
+
+    // Create modal
+    modal = document.createElement('div');
+    modal.id = 'rentEquipmentModal';
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Rent Equipment</h3>
+                <span class="close" id="closeRentEquipmentModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="rent-equipment-error" class="error-message" style="display:none;color:red;"></div>
+                <form id="rent-equipment-form">
+                    <div class="equipment-list">
+                        ${availableEquipment && availableEquipment.length > 0 ? availableEquipment.map(eq => {
+                            let fee = eq.Rental_fee;
+                            if (typeof fee !== 'number') fee = parseFloat(fee);
+                            if (isNaN(fee)) fee = 0;
+                            return `
+                                <div class="equipment-item">
+                                    <div class="equipment-item-info">
+                                        <strong>${eq.Type}</strong><br>
+                                        Rental Fee: $${fee.toFixed(2)}<br>
+                                        Available: ${eq.available}
+                                    </div>
+                                    <div class="equipment-item-action">
+                                        <input type="number" min="0" max="${eq.available}" value="0" data-type="${eq.Type}" class="quantity-input" style="width:60px;">
+                                    </div>
+                                </div>
+                            `;
+                        }).join('') : '<p>No equipment available for rent.</p>'}
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelRentEquipment">Cancel</button>
+                <button class="btn btn-primary" id="submitRentEquipment">Rent Selected</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Close modal handlers
+    document.getElementById('closeRentEquipmentModal').onclick = () => modal.remove();
+    document.getElementById('cancelRentEquipment').onclick = (e) => { e.preventDefault(); modal.remove(); };
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    // Submit rental
+    document.getElementById('submitRentEquipment').onclick = async (e) => {
+        e.preventDefault();
+        const errorDiv = document.getElementById('rent-equipment-error');
+        errorDiv.style.display = 'none';
+        const items = [];
+        document.querySelectorAll('.quantity-input').forEach(input => {
+            const qty = parseInt(input.value);
+            if (qty > 0) {
+                items.push({ type: input.dataset.type, quantity: qty });
+            }
+        });
+        if (items.length === 0) {
+            errorDiv.textContent = 'Please select at least one equipment to rent.';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        try {
+            const response = await authenticatedFetch(`${MEMBER_API}/rent-equipment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items })
+            });
+            if (response.ok) {
+                showNotification('Equipment rented successfully!', 'success');
+                modal.remove();
+                await loadMemberData();
+            } else {
+                const error = await response.json();
+                errorDiv.textContent = error.error || 'Failed to rent equipment.';
+                errorDiv.style.display = 'block';
+            }
+        } catch (err) {
+            errorDiv.textContent = 'Error renting equipment. Please try again.';
+            errorDiv.style.display = 'block';
+        }
+    };
 }
 
 // Export functions
 export {
+    openProfileEditModal,
+    handleProfileSave,
+    fetchMemberProfile,
     loadMemberData,
-    setupMemberEventListeners
+    setupMemberEventListeners,
+    openBookTeeTimeModal,
+    bookTeeTime,
+    cancelTeeTime
 }; 

@@ -1140,10 +1140,29 @@ select {
 }
 
 /* Profile Card */
+/* remove the parent grid */
 .profile-info {
-    display: grid;
-    grid-template-columns: 120px 1fr;
-    gap: 15px;
+    display: block;
+    padding: 15px;
+}
+
+/* make each <p> a flex‐row of [label][value] */
+.profile-info p {
+    display: flex;
+    align-items: center;
+    margin: 0 0 0.5rem;
+    /* space between rows */
+}
+
+/* give your <strong> (the label) a fixed width */
+.profile-info p strong {
+    display: inline-block;
+    width: 100px;
+    /* tweak to fit your longest label */
+    flex-shrink: 0;
+    /* don't let it collapse */
+    margin-right: 1rem;
+    /* gap between label & value */
 }
 
 .profile-picture {
@@ -1188,6 +1207,10 @@ select {
     background-color: rgba(0, 0, 0, 0.03);
     border-radius: 8px;
     margin-bottom: 15px;
+}
+
+.plan-info {
+    padding: 15px;
 }
 
 .plan-type {
@@ -1596,4 +1619,10 @@ select {
 #employee-view .view-header h2 {
     font-size: 1.6rem;
     margin-bottom: 10px;
+}
+
+/* --- Chart Canvas Sizing --- */
+.stats-card canvas {
+    width: 100% !important;
+    height: 200px !important;
 }

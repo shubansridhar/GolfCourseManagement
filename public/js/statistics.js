@@ -1,10 +1,17 @@
 // public/js/statistics.js
 // Statistics-specific data fetching and UI logic
 
+import { Chart, registerables } from 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.esm.js';
 import { authenticatedFetch } from './auth.js';
 import { showNotification } from './views.js';
 
+// store references to Chart instances for cleanup
+let chartInstances = {};
+
 const API_BASE_URL = '/api';
+
+// Register all necessary Chart.js components
+Chart.register(...registerables);
 
 /**
  * Load and render statistics data.
@@ -23,41 +30,60 @@ async function loadStatisticsData() {
         const response = await authenticatedFetch(`${API_BASE_URL}/statistics`);
         if (!response.ok) throw new Error('Failed to fetch statistics');
 
-        const { tableCounts, membersByPlan, teeTimeStatus, equipmentAvailability } = await response.json();
+        // Load all metrics from server
+        const stats = await response.json();
 
-        // Populate table record counts
-        const countsDiv = container.querySelector('.stats-table-counts');
-        if (countsDiv) {
-            countsDiv.innerHTML = '<ul>' + Object.entries(tableCounts)
-                .map(([name, count]) => `<li><strong>${name}:</strong> ${count}</li>`)
-                .join('') + '</ul>';
+        // Destroy old chart instances
+        Object.values(chartInstances).forEach(c => c.destroy());
+        chartInstances = {};
+        // Clear existing cards
+        const grid = container.querySelector('.stats-grid');
+        grid.innerHTML = '';
+        // Configuration for each metric
+        const chartConfigs = {
+            usersByRole: { title: 'Users by Role', type: 'pie', icon: 'fas fa-user-tag' },
+            avgAccountAge: { title: 'Avg Account Age (days)', type: 'bar', icon: 'fas fa-hourglass-half' },
+            totalPlans: { title: 'Total Plans', type: 'bar', icon: 'fas fa-list-alt' },
+            coursesByStatus: { title: 'Courses by Status', type: 'bar', icon: 'fas fa-golf-ball' },
+            holesByPar: { title: 'Holes by Par', type: 'bar', icon: 'fas fa-hashtag' },
+            bookingsToday: { title: 'Bookings Today', type: 'bar', icon: 'fas fa-calendar-day' },
+            upcomingBookings: { title: 'Upcoming Bookings', type: 'bar', icon: 'fas fa-calendar-plus' },
+            avgAvailSlots: { title: 'Avg Available Slots', type: 'bar', icon: 'fas fa-th-list' },
+            rentalsThisMonth: { title: 'Rentals This Month', type: 'bar', icon: 'fas fa-shopping-cart' },
+            pendingReturns: { title: 'Pending Returns', type: 'bar', icon: 'fas fa-box-open' },
+            myUpcomingTeeTimes: { title: 'My Upcoming Tee Times', type: 'bar', icon: 'fas fa-calendar-check' },
+            myPastTeeTimes: { title: 'My Past Tee Times', type: 'bar', icon: 'fas fa-history' },
+            myActiveRentals: { title: 'My Active Rentals', type: 'bar', icon: 'fas fa-warehouse' },
+            myReturnedRentals: { title: 'My Returned Rentals', type: 'bar', icon: 'fas fa-undo-alt' },
+            myAvgRentalDuration: { title: 'My Avg Rental Duration (days)', type: 'bar', icon: 'fas fa-hourglass-end' }
+        };
+        // Dynamically render each metric card and chart
+        for (const key of Object.keys(chartConfigs)) {
+            const cfg = chartConfigs[key];
+            const dataRows = stats[key] || [];
+            // build card
+            const card = document.createElement('div'); card.className = 'stats-card';
+            const title = document.createElement('h3'); title.innerHTML = `<i class="${cfg.icon}"></i> ${cfg.title}`; card.appendChild(title);
+            const canvas = document.createElement('canvas'); canvas.id = `chart-${key}`; card.appendChild(canvas);
+            grid.appendChild(card);
+            // map rows to labels/values
+            let labels = [], values = [];
+            if (dataRows.length > 1 && dataRows[0].label !== undefined) {
+                labels = dataRows.map(r => r.label);
+                values = dataRows.map(r => r.value);
+            } else if (dataRows.length === 1) {
+                labels = [cfg.title];
+                values = [dataRows[0].value];
+            }
+            const ctx = canvas.getContext('2d');
+            chartInstances[key] = new Chart(ctx, {
+                type: cfg.type,
+                data: { labels, datasets: [{ label: cfg.title, data: values, backgroundColor: 'rgba(54, 162, 235, 0.5)' }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
         }
 
-        // Populate membership by plan type
-        const planDiv = container.querySelector('.stats-membership-chart');
-        if (planDiv) {
-            planDiv.innerHTML = '<ul>' + membersByPlan
-                .map(item => `<li><strong>${item.Plan_type}:</strong> ${item.count}</li>`)
-                .join('') + '</ul>';
-        }
-
-        // Populate tee time status
-        const teeDiv = container.querySelector('.stats-teetime-chart');
-        if (teeDiv) {
-            teeDiv.innerHTML = '<ul>' + teeTimeStatus
-                .map(item => `<li><strong>${item.Status}:</strong> ${item.count}</li>`)
-                .join('') + '</ul>';
-        }
-
-        // Populate equipment availability
-        const equipDiv = container.querySelector('.stats-equipment-chart');
-        if (equipDiv) {
-            equipDiv.innerHTML = '<ul>' + equipmentAvailability
-                .map(item => `<li><strong>${item.Type}:</strong> ${item.available}/${item.total} available</li>`)
-                .join('') + '</ul>';
-        }
-
-        // Hide loading, show grid
+        // Hide loading, show stats grid
         if (loading) loading.style.display = 'none';
         if (grid) grid.style.display = 'grid';
     } catch (error) {

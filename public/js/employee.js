@@ -25,6 +25,15 @@ const tableDescriptions = {
     EQUIPMENT_RENTAL: 'View equipment rental records' // Assuming rentals table exists
 };
 
+// tables you don’t want employees to see
+const excludeTables = [
+    'GOLF_COURSE',
+    'PLAN_DISCOUNT',
+    'HOLE',
+    'EMPLOYEE',
+    'MANAGES'
+  ];
+
 /**
  * Load and render tables for employee use
  */
@@ -40,14 +49,14 @@ async function loadEmployeeData() {
 
         const tables = await response.json(); // API already excludes 'users' table
 
-        // ---> FILTER REMOVED <---
-        // No specific employeeAllowedTables filter anymore. Show all returned tables.
-        const filteredAndSorted = tables.sort((a, b) => a.localeCompare(b));
-        // -----------------------
+        // Filter out excluded tables, then sort alphabetically
+         const filteredAndSorted = tables
+        .filter(t => !excludeTables.includes(t.toUpperCase()))
+        .sort((a, b) => a.localeCompare(b));
 
         if (filteredAndSorted.length === 0) {
-            container.innerHTML = '<p class="no-tables">No data sections available.</p>'; // More generic message
-            return;
+        container.innerHTML = '<p class="no-tables">No data sections available.</p>';
+        return;
         }
 
         // Render table cards
@@ -97,9 +106,18 @@ function getIcon(tableName) {
  * Format table name for display
  */
 function formatTableName(tableName) {
-    return tableName
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, char => char.toUpperCase());
+    const customTitles = {
+        'EQUIPMENT': 'Equipment Inventory',
+        'EQUIPMENT_RENTAL': 'Equipment Rentals',
+        'EQUIPMENT_TYPE': 'Equipment Types',
+        'MEMBER': 'Members',
+        'MEMBER_TEE_TIME': 'Tee Time Bookings',
+        'MEMBERSHIP_PLAN': 'Membership Plans',
+        'TEE_TIME': 'Manage Tee Times'
+    };
+
+    return customTitles[tableName.toUpperCase()] || 
+           tableName.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
 }
 
 export { loadEmployeeData };

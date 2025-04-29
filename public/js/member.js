@@ -506,7 +506,7 @@ function setupMemberEventListeners() {
     document.getElementById('refresh-member-data-btn')?.addEventListener('click', loadMemberData);
 }
 
-// Placeholder functions for modals (will be implemented later)
+// edit profile
 function openProfileEditModal() {
     console.log('🔔 openProfileEditModal() called, memberProfile=', memberProfile);
     if (!memberProfile) return;
@@ -558,6 +558,7 @@ function openProfileEditModal() {
     saveBtn.onclick = handleProfileSave;
   }
   
+  // save profile
   async function handleProfileSave() {
     const form  = document.getElementById('profile-edit-form');
     const modal = document.getElementById('profile-edit-modal');
@@ -592,11 +593,7 @@ function openProfileEditModal() {
     }
   }
   
-
-function openPlanChangeModal() {
-    console.log('Open plan change modal');
-}
-
+// book tee time modal
 async function openBookTeeTimeModal() {
     const modal = document.getElementById('tee-time-modal');
     modal.innerHTML = `
@@ -630,6 +627,7 @@ async function openBookTeeTimeModal() {
     document.getElementById('load-tee-times-btn').onclick = loadAvailableTeeTimes;
   }
   
+  // load tee times
   async function loadAvailableTeeTimes() {
     const date = document.getElementById('book-date').value;
     if (!date) {
@@ -674,6 +672,7 @@ async function openBookTeeTimeModal() {
       });
   }
   
+// rent equipment modal
 function openRentEquipmentModal() {
     // Remove any existing modal
     let modal = document.getElementById('rentEquipmentModal');

@@ -14,8 +14,6 @@ async function checkAdminExists() {
     try { const resp = await fetch('/api/auth/admin-exists'); if (!resp.ok) { console.error("API Err check admin:", resp.status); return true; } const data = await resp.json(); return data.exists; } catch (error) { console.error('Net err check admin:', error); return true; }
 }
 
-// --- Show/Hide Functions ---
-
 function showAuthView() { hideAllViews(); const aV = document.getElementById('auth-view'); if (aV) { aV.style.display = 'flex'; document.body.classList.add('auth-background'); } const uS = document.getElementById('user-status'); if (uS) uS.style.display = 'none'; showLoginForm(); }
 function showLoginForm() { const lFC = document.getElementById('login-form-container'); const sFC = document.getElementById('signup-form-container'); if (lFC && sFC) { lFC.style.display = 'block'; sFC.style.display = 'none'; const lE = document.getElementById('login-error'); if (lE) lE.style.display = 'none'; const lF = document.getElementById('login-form'); if (lF) lF.reset(); } }
 
@@ -66,13 +64,6 @@ async function showSignupForm() { // Make async
             if (fnameInput) fnameInput.required = false;
             if (lnameInput) lnameInput.required = false;
         }
-        // --------------------------------------------------------------------------
-
-        // REMOVED: Dispatching event - we now handle initial state directly above.
-        // if (roleSelect) {
-        //     console.log("Dispatching initial change event for role select");
-        //     roleSelect.dispatchEvent(new Event('change'));
-        // }
     } else {
         console.error("One or more signup form elements not found in showSignupForm!");
     }

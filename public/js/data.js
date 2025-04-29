@@ -7,7 +7,6 @@ const API_BASE_URL = '/api';
 let currentTableStructure = [];
 let currentPrimaryKeyField = '';
 
-// near the top of the file (or wherever makes sense)
 const noAddTables = [
     'MEMBER',
     'MEMBER_TEE_TIME',
@@ -15,7 +14,7 @@ const noAddTables = [
     'EQUIPMENT_RENTAL',
     'GOLF_COURSE',
     'HOLE',
-    // add any other table names here you want to disable “Add”
+    // add any other table names to disable Add function
   ];
 
   // ---> ADDED Constants for Edit/Delete Permissions <---
@@ -211,8 +210,6 @@ function renderTableData(structure, tableData) {
              if (showEditButton) { actionButtons.push(`<button class="btn-edit" ${actionsDisabled} title="Edit"><i class="fas fa-edit"></i></button>`); }
 
              // ASSIGN PLAN Button (Only for MEMBER table and Employee role)
-             // This check is now technically redundant because showActionsColumn is already false
-             // for Admins viewing MEMBER, but keeping it adds clarity.
              if (isMemberTable && currentUser?.role === 'employee') {
                 const memberName = `${row.Fname || ''} ${row.Lname || ''}`.trim();
                  actionButtons.push(`<button class="btn-assign-plan" data-userid="${recordId}" data-name="${escapeHtml(memberName)}" title="Assign/Change Plan"><i class="fas fa-id-card"></i></button>`);
@@ -244,7 +241,7 @@ function renderTableData(structure, tableData) {
 
 function formatCellValue(value) { if (value === null || value === undefined) return '-'; const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(.\d+)?Z?$/; if (typeof value === 'string' && dateRegex.test(value)) { const date = new Date(value); if (!isNaN(date.getTime())) return date.toLocaleDateString(); } if (typeof value === 'boolean') return value ? 'Yes' : 'No'; if (typeof value === 'object' && value !== null && value.type === 'Buffer' && Array.isArray(value.data)) return value.data[0] === 1 ? 'Yes' : 'No'; return value.toString(); }
 
-// ---> UPDATED: loadAndRenderUsers to add Actions column/button <---
+// Load and render users to add Actions column/button
 async function loadAndRenderUsers() {
     const container = document.getElementById('user-list-container');
     const table = document.getElementById('user-list-table');
@@ -304,7 +301,6 @@ async function loadAndRenderUsers() {
     finally { loadingIndicator.style.display = 'none'; }
 }
 
-// ---> ADDED: Function to handle user deletion <---
 /**
  * Deletes a user from the 'users' table after confirmation.
  * @param {string} userIdToDelete
@@ -347,7 +343,6 @@ function escapeHtml(unsafe) { if (unsafe === null || unsafe === undefined) retur
 
 // --- MODAL AND CRUD FUNCTIONS ---
 
-// ---> REPLACED openAddRecordModal with combined openRecordModal <---
 async function openRecordModal(recordId = null) {
     const isEditing = recordId !== null;
     const tableName = window.currentTable; if (!tableName) { showNotification("No table selected.", "warning"); return; }
@@ -359,16 +354,11 @@ async function openRecordModal(recordId = null) {
     modal.style.display='block';
 }
 
-// ---> REPLACED handleAddRecordSubmit with combined handleModalFormSubmit <---
+
 async function handleModalFormSubmit() {
-    // ---> ADDED Log: Check if function is called <---
-    console.log("handleModalFormSubmit called!");
 
     const tableName = window.currentTable; const form = document.getElementById('add-record-form'); if (!tableName || !form) { showNotification("Cannot submit.", "error"); return; }
     const editingId = form.dataset.editingId; const isEditing = !!editingId; 
-
-    // ---> ADDED Log: Check if edit mode is detected <---
-    console.log(`handleModalFormSubmit: isEditing = ${isEditing}, editingId = ${editingId}`);
     
     const formData = new FormData(form); const dataToSubmit = {}; let isValid = true; let missing = [];
 
@@ -385,7 +375,7 @@ async function deleteRecord(recordId) {
     try { const url = `${API_BASE_URL}/tables/${tableName}/${recordId}?primaryKey=${encodeURIComponent(pkField)}`; const response = await authenticatedFetch(url, { method: 'DELETE' }); const result = await response.json(); if (!response.ok) { throw new Error(result.error || `Server error ${response.status}`); } showNotification('Deleted!', 'success'); loadTableData(tableName); } catch (error) { console.error("Error deleting:", error); showNotification(`Error deleting: ${error.message}`, 'error'); }
 }
 
-// ---> MODIFIED: editRecord now calls openRecordModal after permission check <---
+
 function editRecord(recordId) {
     console.log('Edit button for record:', recordId, 'in table', window.currentTable);
     const tableNameUpper = window.currentTable?.toUpperCase();
@@ -415,7 +405,6 @@ async function handleAddEmployeeSubmit() {
     try { const response = await authenticatedFetch(`${API_BASE_URL}/admin/employees`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const result = await response.json(); if (!response.ok) { throw new Error(result.error || `Failed add employee`); } showNotification(result.message || 'Employee created!', 'success'); document.getElementById('add-employee-modal').style.display = 'none'; loadAndRenderUsers(); } catch (error) { console.error("Error adding employee:", error); errorDiv.textContent = error.message; errorDiv.style.display = 'block'; }
 }
 
-// ---> ADD Assign Plan Modal Functions <---
 
 /**
  * Opens the modal to assign/change a membership plan for a user.
@@ -473,7 +462,6 @@ async function openAssignPlanModal(userId, userName) {
              planSelect.appendChild(new Option("-- No Plans Available --", ""));
              planSelect.disabled = true; // Keep disabled if no actual plans
         }
-        // TODO: Add logic here to fetch the member's current plan and set planSelect.value
 
     } catch (error) {
         console.error("Error fetching plans for modal:", error);
@@ -528,14 +516,10 @@ async function handleAssignPlanSubmit() {
         errorDiv.style.display = 'block';
     }
 }
-// -------------------------------------
 
 
-
-// ---> UPDATED Exports <---
 export {
     fetchTablesAndPopulateDashboard, loadTableData, loadAndRenderUsers,
     openRecordModal, handleModalFormSubmit, handleAddAdminSubmit,
     handleAddEmployeeSubmit, handleAssignPlanSubmit
-    // deleteUser is internal, called by listener added in loadAndRenderUsers
 };

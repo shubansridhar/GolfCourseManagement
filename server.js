@@ -23,7 +23,7 @@ const dbPool = mysql.createPool({
     port: process.env.DB_PORT || 3306,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME, // Make sure this matches the DB you are using!
+    database: process.env.DB_NAME, 
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
@@ -93,23 +93,23 @@ app.post('/api/auth/signup', async (req, res, next) => {
     } catch (error) { next(error); }
 });
 
-// POST /api/auth/login (Unchanged)
+// POST /api/auth/login
 app.post('/api/auth/login', async (req, res, next) => {
     const { username, password } = req.body; if (!username || !password) return res.status(400).json({ error: 'Username/password required.' }); try { const [rows] = await dbPool.query('SELECT user_id, username, password_hash, role FROM users WHERE username = ?', [username]); if (rows.length === 0) return res.status(401).json({ error: 'Invalid credentials.' }); const user = rows[0]; const match = await bcrypt.compare(password, user.password_hash); if (!match) return res.status(401).json({ error: 'Invalid credentials.' }); const payload = { userId: user.user_id, username: user.username, role: user.role }; const secret = process.env.JWT_SECRET; if (!secret) { console.error("NO JWT SECRET"); return res.status(500).json({ error: 'Server config error' }); } const token = jwt.sign(payload, secret, { expiresIn: '1h' }); res.status(200).json({ message: 'Login successful!', token: token, username: user.username, role: user.role }); } catch (error) { next(error); }
 });
 
-// GET /api/auth/admin-exists (Unchanged)
+// GET /api/auth/admin-exists 
 app.get('/api/auth/admin-exists', async (req, res, next) => {
     try { const [rows] = await dbPool.query('SELECT COUNT(*) as adminCount FROM users WHERE role=?', ['admin']); res.json({ exists: rows[0].adminCount > 0 }); } catch (err) { console.error("Admin check error:", err); res.status(500).json({ exists: true, error: 'Check failed' }); }
 });
 
 
 // --- Admin Routes ---
-// GET /api/admin/users (List users - Unchanged)
+// GET /api/admin/users 
 app.get('/api/admin/users', async (req, res, next) => {
     if (!req.user || req.user.role !== 'admin') { return res.status(403).json({ error: 'Forbidden.' }); } try { const q = 'SELECT user_id, username, role, created_at FROM users ORDER BY user_id'; const [users] = await dbPool.query(q); res.json(users); } catch (err) { next(err); }
 });
-// POST /api/admin/users (Create Admin by Admin - Unchanged)
+// POST /api/admin/users 
 app.post('/api/admin/users', async (req, res, next) => {
     if (!req.user || req.user.role !== 'admin') { return res.status(403).json({ error: 'Forbidden.' }); } const { username, password } = req.body; const roleToCreate = 'admin'; if (!username || !password) { return res.status(400).json({ error: 'Username/password required.' }); } if (password.length < 4) { return res.status(400).json({ error: 'Password min 4 chars.' }); } try { const [exist] = await dbPool.query('SELECT user_id FROM users WHERE username = ?', [username]); if (exist.length > 0) { return res.status(409).json({ error: 'Username taken.' }); } const hashed = await bcrypt.hash(password, saltRounds); const [insertRes] = await dbPool.query('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', [username, hashed, roleToCreate]); console.log(`Admin ${req.user.username} created admin ${username}`); res.status(201).json({ message: `Admin '${username}' created.` }); } catch (error) { next(error); }
 });
@@ -135,7 +135,7 @@ app.post('/api/admin/employees', async (req, res, next) => {
 });
 
 
-// ---> ADDED/VERIFIED: DELETE /api/admin/users/:userId <---
+// DELETE /api/admin/users/:userId 
 app.delete('/api/admin/users/:userId', async (req, res, next) => {
     if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden: Only admins can delete users.' });
     const targetUserId = parseInt(req.params.userId, 10);
@@ -160,7 +160,7 @@ app.delete('/api/admin/users/:userId', async (req, res, next) => {
 });
 // ----------------------------------------------------
 
-// 1. MEMBER_TEE_TIME → show member name instead of user_id
+// GET MEMBER_TEE_TIME
 app.get('/api/tables/MEMBER_TEE_TIME', authenticateToken, async (req, res, next) => {
     try {
         const [rows] = await dbPool.query(`
@@ -183,7 +183,7 @@ app.get('/api/tables/MEMBER_TEE_TIME', authenticateToken, async (req, res, next)
     }
 });
 
-// Return a custom "structure" for MEMBER_TEE_TIME so the client will render MemberName
+// updated MEMBER_TEE_TIME structure
 app.get('/api/tables/MEMBER_TEE_TIME/structure', authenticateToken, async (req, res, next) => {
     try {
         // Fetch the real describe info
@@ -204,7 +204,7 @@ app.get('/api/tables/MEMBER_TEE_TIME/structure', authenticateToken, async (req, 
     }
 });
 
-// 2. EQUIPMENT_RENTAL → show username instead of user_id
+// show username for EQUIPMENT_RENTAL instead of Id
 app.get('/api/tables/EQUIPMENT_RENTAL', authenticateToken, async (req, res, next) => {
     try {
         const [rows] = await dbPool.query(`
@@ -226,7 +226,7 @@ app.get('/api/tables/EQUIPMENT_RENTAL', authenticateToken, async (req, res, next
     }
 });
 
-// Custom structure for EQUIPMENT_RENTAL: drop user_id, prepend Username
+// custom structure for EQUIPMENT_RENTAL: drop user_id, prepend Username
 app.get('/api/tables/EQUIPMENT_RENTAL/structure', authenticateToken, async (req, res, next) => {
     try {
         const [orig] = await dbPool.query('DESCRIBE `EQUIPMENT_RENTAL`');
@@ -244,41 +244,8 @@ app.get('/api/tables/EQUIPMENT_RENTAL/structure', authenticateToken, async (req,
 });
 
 
-// 3. MANAGES → show employee name instead of user_id
-app.get('/api/tables/MANAGES', authenticateToken, async (req, res, next) => {
-    try {
-        const [rows] = await dbPool.query(`
-      SELECT
-        m.Equipment_id           AS Equipment_id,
-        m.user_id                AS user_id,
-        CONCAT(e.Emp_fname,' ',e.Emp_lname) AS EmployeeName
-      FROM MANAGES m
-      JOIN EMPLOYEE e
-        ON m.user_id = e.user_id
-    `);
-        res.json(rows);
-    } catch (err) {
-        next(err);
-    }
-});
-
-// Custom structure for MANAGES: drop user_id, prepend EmployeeName
-app.get('/api/tables/MANAGES/structure', authenticateToken, async (req, res, next) => {
-    try {
-        const [orig] = await dbPool.query('DESCRIBE `MANAGES`');
-        const filtered = orig.filter(col => col.Field !== 'user_id');
-        const custom = [
-            { Field: 'EmployeeName', Type: 'varchar(255)', Null: 'YES', Key: '', Default: null, Extra: '' },
-            ...filtered
-        ];
-        res.json(custom);
-    } catch (err) {
-        next(err);
-    }
-});
-
 // --- Table Data Routes ---
-// GET /api/tables, GET /:tableName/structure, GET /:tableName (Unchanged)
+// GET /api/tables, GET /:tableName/structure, GET /:tableName 
 app.get('/api/tables', async (req, res, next) => { try { const [r] = await dbPool.query("SHOW TABLES"); const t = r.map(rw => Object.values(rw)[0]).filter(n => n !== 'users'); res.json(t); } catch (err) { next(err); } });
 app.get('/api/tables/:tableName/structure', async (req, res, next) => { const tN = req.params.tableName; if (!tN.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid name.' }); if (tN.toLowerCase() === 'users') return res.status(403).json({ error: 'Denied.' }); const q = `DESCRIBE \`${tN}\``; try { const [r] = await dbPool.query(q); res.json(r); } catch (err) { if (err.code === 'ER_NO_SUCH_TABLE') return res.status(404).json({ error: `Table '${tN}' not found.` }); next(err); } });
 app.get('/api/tables/:tableName', async (req, res, next) => { const tN = req.params.tableName; if (!tN.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid name.' }); if (tN.toLowerCase() === 'users') return res.status(403).json({ error: 'Denied.' }); const q = `SELECT * FROM \`${tN}\``; try { const [r] = await dbPool.query(q); res.json(r); } catch (err) { if (err.code === 'ER_NO_SUCH_TABLE') return res.status(404).json({ error: `Table '${tN}' not found.` }); next(err); } });
@@ -296,7 +263,7 @@ app.get('/api/tables/:tableName/:id', async (req, res, next) => {
     catch (err) { if (err.code === 'ER_NO_SUCH_TABLE') return res.status(404).json({ error: `Table '${tableName}' not found.` }); next(err); }
 });
 
-// POST /api/tables/:tableName (Add record - Role check Added)
+// POST /api/tables/:tableName 
 app.post('/api/tables/:tableName', async (req, res, next) => { if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) { return res.status(403).json({ error: 'Forbidden' }); } const tN = req.params.tableName; if (!tN.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid name.' }); if (tN.toLowerCase() === 'users') return res.status(403).json({ error: 'Denied.' }); const d = req.body; const cD = {}; Object.keys(d).forEach(k => { if (d[k] !== '') cD[k] = d[k]; }); if (Object.keys(cD).length === 0) return res.status(400).json({ error: 'No data.' }); const q = `INSERT INTO \`${tN}\` SET ?`; try { const [r] = await dbPool.query(q, cD); res.status(201).json({ message: 'Inserted', insertId: r.insertId }); } catch (err) { next(err); } });
 
 
@@ -325,15 +292,13 @@ app.put('/api/tables/:tableName/:id', async (req, res, next) => {
 
 
 
-// DELETE /api/tables/:tableName/:id (Delete record - Role check Added)
+// DELETE /api/tables/:tableName/:id 
 app.delete('/api/tables/:tableName/:id', async (req, res, next) => { if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) { return res.status(403).json({ error: 'Forbidden' }); } const tN = req.params.tableName; const id = req.params.id; const pK = req.query.primaryKey; if (!tN.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'Invalid name.' }); if (tN.toLowerCase() === 'users') return res.status(403).json({ error: 'Denied.' }); if (!pK || !pK.match(/^[a-zA-Z0-9_]+$/)) return res.status(400).json({ error: 'PK required.' }); if (!id) return res.status(400).json({ error: 'ID required.' }); const q = `DELETE FROM \`${tN}\` WHERE \`${pK}\` = ?`; try { const [r] = await dbPool.query(q, [id]); if (r.affectedRows === 0) return res.status(404).json({ error: `Record ${id} not found.` }); res.json({ message: 'Deleted', affectedRows: r.affectedRows }); } catch (err) { if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_ROW_IS_REFERENCED') { return res.status(409).json({ error: 'Cannot delete: Record referenced.' }); } next(err); } });
 
 
 // --- Statistics Route --- (Query Updated)
 app.get('/api/statistics', async (req, res, next) => {
-    /*if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) {
-        return res.status(403).json({ error: 'Forbidden: Admin/Employee only.' });
-    }*/
+ 
     const userId = req.user.userId;
     // Define metrics: key maps to SQL + optional params
     const metrics = [
@@ -372,7 +337,7 @@ app.get('/api/statistics', async (req, res, next) => {
 
 
 // --- Member API Routes (Updated for NEW schema) ---
-// --- Member API Routes (Updated for NEW schema) ---
+
 
 // GET /api/member/profile
 
@@ -555,7 +520,7 @@ app.get('/api/member/tee-times', authenticateToken, async (req, res, next) => {
       LIMIT 10
     `, [userId]);
 
-        // **NEW** available slots query
+        // available slots query
         const [avail] = await dbPool.query(`
       SELECT
         tt.Tee_time_id     AS id,
@@ -654,10 +619,9 @@ app.post('/api/member/equipment/:rentalId/return', async (req, res, next) => {
     }
 });
 
-// ---> ADDED Staff/Admin specific routes for plan assignment <---
+// Staff/Admin specific routes for plan assignment 
 
 // GET /api/staff/plans (Get list of plans for dropdown)
-// Added authenticateToken via app.use('/api/staff', ...)
 app.get('/api/staff/plans', async (req, res, next) => {
     // Allow Admins or Employees (already checked by middleware applied to group)
     try {
@@ -670,12 +634,10 @@ app.get('/api/staff/plans', async (req, res, next) => {
 });
 
 // PUT /api/staff/members/:userId/plan (Assign/Update a member's plan)
-// Added authenticateToken via app.use('/api/staff', ...)
 // Renamed route slightly for clarity
 app.put('/api/staff/members/:userId/plan', async (req, res, next) => {
     // Allow Admins or Employees
     if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) {
-        // Belt-and-suspenders check, though middleware should catch it
         return res.status(403).json({ error: 'Forbidden: Admin/Employee access required.' });
     }
 
@@ -713,11 +675,6 @@ app.put('/api/staff/members/:userId/plan', async (req, res, next) => {
             'UPDATE MEMBER SET Member_plan_id = ? WHERE user_id = ?',
             [Plan_id, targetUserId] // Pass validated Plan_id (or null)
         );
-
-        // Check if update actually changed anything (might already have that plan or null)
-        // if (result.affectedRows === 0) {
-        //     return res.status(404).json({ error: 'Member not found or plan was already set to this value.' });
-        // }
 
         res.json({ message: `Membership plan updated successfully for user ${targetUserId}` });
 

@@ -20,8 +20,8 @@ async function loadStatisticsData(context = 'admin') {
     // Determine which container to use based *only* on context
     const selectorMap = {
         admin: '#statistics-view .stats-container',         // Main statistics page
-        employee: '#statistics-view .stats-container', // Employee portal
-        member: '#statistics-view .stats-container'    // Member portal
+        employee: '#statistics-view .stats-container',      // fixed bug made them all the same
+        member: '#statistics-view .stats-container'         // ...was only displaying admin stats
     };
     // Always use the map based on context, default to admin if needed
     const containerSelector = selectorMap[context] || selectorMap.admin;
@@ -55,7 +55,7 @@ async function loadStatisticsData(context = 'admin') {
             usersByRole: { title: 'Users by Role', type: 'pie', icon: 'fas fa-user-tag', colors: ['#FF6384','#36A2EB','#FFCE56']  },
             avgAccountAge: { title: 'Avg Account Age', type: 'bar', icon: 'fas fa-hourglass-half', numberOnly: true },
             totalPlans:     { title: 'Total Plans',     type: 'bar', icon: 'fas fa-list-alt',      numberOnly: true },
-            coursesByStatus: { title: 'Course Status', type: 'bar', icon: 'fas fa-golf-ball',  numberOnly: true },
+            coursesByStatus: { title: 'Course Status', type: 'bar', icon: 'fas fa-golf-ball',  textOnly: true },
             holesByPar: { title: 'Holes by Par', type: 'bar', icon: 'fas fa-hashtag', colors: ['#FF6384','#36A2EB','#FFCE56'] },
             bookingsToday: { title: 'Bookings Today', type: 'bar', icon: 'fas fa-calendar-day', numberOnly: true },
             upcomingBookings: { title: 'Upcoming Bookings', type: 'bar', icon: 'fas fa-calendar-plus', numberOnly: true  },
@@ -80,25 +80,35 @@ async function loadStatisticsData(context = 'admin') {
             const cfg      = chartConfigs[key];
             const dataRows = stats[key] || [];
           
-            // 1) build card + title
-            const card  = document.createElement('div');
+            // build card + title
+            const card = document.createElement('div');
             card.className = 'stats-card';
             card.innerHTML = `<h3><i class="${cfg.icon}"></i> ${cfg.title}</h3>`;
           
-            // 2) numberOnly? just render the Big Number
-            if (cfg.numberOnly && dataRows.length === 1) {
+            // special text-only for Course Status
+            if (cfg.textOnly && dataRows.length === 1) {
+              const v = dataRows[0].value;
+              const text = v === 1 ? 'Open' : 'Closed';
+              const el = document.createElement('div');
+              el.className = 'stat-number';
+              el.textContent = text;
+              el.style.color = v === 1 ? 'green' : 'red';
+              card.appendChild(el);
+          
+            // numeric-only stats 
+            } else if (cfg.numberOnly && dataRows.length === 1) {
+              const val = dataRows[0].value;
               const numEl = document.createElement('div');
               numEl.className = 'stat-number';
-              numEl.textContent = dataRows[0].value;
+              numEl.textContent = val;
               card.appendChild(numEl);
           
+            // everything else falls back to Chart.js
             } else {
-              // 3) otherwise make a <canvas> + Chart.js
               const canvas = document.createElement('canvas');
-              canvas.id  = `chart-${key}`;
+              canvas.id = `chart-${key}`;
               card.appendChild(canvas);
           
-              // extract labels & values
               let labels = [], values = [];
               if (dataRows.length > 1 && dataRows[0].label !== undefined) {
                 labels = dataRows.map(r => r.label);
@@ -107,7 +117,7 @@ async function loadStatisticsData(context = 'admin') {
                 labels = [cfg.title];
                 values = [dataRows[0].value];
               }
-              
+          
               const hideLegend = key === 'holesByPar';
               const ctx = canvas.getContext('2d');
               chartInstances[key] = new Chart(ctx, {
@@ -121,21 +131,17 @@ async function loadStatisticsData(context = 'admin') {
                   }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                      legend: {
-                        display: !hideLegend
-                      }
-                    }
-                  }
-                });
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: !hideLegend } }
+                }
+              });
             }
           
             grid.appendChild(card);
           }
 
-        // Hide loading, show stats grid
+        // Hide loading, show stats grid no longer necessary
         if (loading) loading.style.display = 'none';
         if (grid) grid.style.display = 'grid';
     } catch (error) {
